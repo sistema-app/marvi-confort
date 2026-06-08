@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="es" ng-app="marviApp">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automatización de Comprobación de Gastos | Marvi Confort</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        marvi: {
+                            900: '#0f172a', /* Slate oscuro */
+                            800: '#1e293b',
+                            accent: '#0ea5e9', /* Sky blue (fresco) */
+                            light: '#e0f2fe',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+
+    <style>
+        /* Estilos adicionales para inputs */
+        input[type="number"]::-webkit-inner-spin-button, 
+        input[type="number"]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; margin: 0; 
+        }
+        .ng-hide { display: none !important; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col" ng-controller="MainController">
+
+    <div ng-show="!isLoggedIn" class="flex-grow flex items-center justify-center bg-gradient-to-br from-marvi-900 to-slate-800">
+        <div class="bg-white p-10 rounded-2xl shadow-2xl w-96 border-t-4 border-marvi-accent">
+            <h1 class="text-3xl font-bold text-center text-marvi-900 mb-2">Marvi Confort</h1>
+            <p class="text-sm text-center text-gray-500 mb-8">Automatización de Gastos</p>
+            
+            <form ng-submit="login()">
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Usuario</label>
+                    <input type="text" ng-model="loginData.username" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-marvi-accent bg-slate-50" required>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Contraseña</label>
+                    <input type="password" ng-model="loginData.password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-marvi-accent bg-slate-50" required>
+                </div>
+                <div class="flex gap-4">
+                    <button type="button" ng-click="loginData = {}" class="w-1/2 py-2 text-gray-600 bg-gray-200 rounded-lg hover:bg-gray-300 transition">Cancelar</button>
+                    <button type="submit" class="w-1/2 py-2 text-white bg-marvi-accent rounded-lg hover:bg-sky-600 transition shadow-lg shadow-sky-500/30">Aceptar</button>
+                </div>
+                <p class="text-red-500 text-sm mt-3 text-center" ng-show="loginError">Credenciales incorrectas.</p>
+            </form>
+        </div>
+    </div>
+
+    <div ng-show="isLoggedIn" class="flex-grow flex flex-col">
+        
+        <header class="bg-marvi-900 text-white shadow-md">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl font-bold tracking-wider text-marvi-light"><span class="text-marvi-accent">Marvi</span> Confort</h1>
+                    <p class="text-xs text-slate-400">Automatización de Comprobación de Gastos</p>
+                </div>
+                <button ng-click="logout()" class="text-sm bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded border border-slate-600 transition">Cerrar Sesión</button>
+            </div>
+        </header>
+
+        <nav class="bg-white border-b border-gray-200 shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-8">
+                <button ng-click="activeTab = 1" ng-class="{'border-b-2 border-marvi-accent text-marvi-accent font-semibold': activeTab === 1, 'text-gray-500 hover:text-gray-700': activeTab !== 1}" class="py-4 px-2 transition">Alta de Obras</button>
+                <button ng-click="activeTab = 2" ng-class="{'border-b-2 border-marvi-accent text-marvi-accent font-semibold': activeTab === 2, 'text-gray-500 hover:text-gray-700': activeTab !== 2}" class="py-4 px-2 transition">Comprobación de Gastos</button>
+                <button ng-click="activeTab = 3" ng-class="{'border-b-2 border-marvi-accent text-marvi-accent font-semibold': activeTab === 3, 'text-gray-500 hover:text-gray-700': activeTab !== 3}" class="py-4 px-2 transition">Reportes</button>
+            </div>
+        </nav>
+
+        <main class="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+
+            <div ng-show="activeTab === 1">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold text-gray-800">Gestión de Obras</h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="bg-white p-6 rounded-xl shadow border border-gray-100 h-fit">
+                        <h3 class="text-lg font-medium text-marvi-900 mb-4">{{ obraActual.ID_OBRA ? 'Actualizar' : 'Registrar' }} Obra</h3>
+                        <form ng-submit="guardarObra()">
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">ID OBRA (Auto)</label>
+                                <input type="text" ng-model="obraActual.ID_OBRA" disabled class="w-full px-3 py-2 bg-gray-100 border rounded text-gray-500 cursor-not-allowed">
+                            </div>
+                            <div class="mb-6">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">NOMBRE DE LA OBRA</label>
+                                <input type="text" ng-model="obraActual.OBRA" required class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-marvi-accent outline-none">
+                            </div>
+                            <div class="flex gap-2">
+                                <button type="submit" class="w-full bg-marvi-accent text-white py-2 rounded hover:bg-sky-600 transition">Guardar</button>
+                                <button type="button" ng-click="limpiarObra()" class="w-full bg-gray-200 text-gray-700 py-2 rounded hover:bg-gray-300 transition">Limpiar</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="md:col-span-2 bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+                        <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
+                            <input type="text" ng-model="searchObra" placeholder="Buscar obra..." class="px-3 py-1 border rounded text-sm w-1/2">
+                        </div>
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-marvi-900 text-white text-sm">
+                                    <th class="py-3 px-4">ID</th>
+                                    <th class="py-3 px-4">OBRA</th>
+                                    <th class="py-3 px-4 text-center">ACCIONES</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="o in obras | filter:searchObra" class="border-b hover:bg-gray-50 transition">
+                                    <td class="py-2 px-4 font-mono text-sm">{{o.ID_OBRA}}</td>
+                                    <td class="py-2 px-4 font-medium">{{o.OBRA}}</td>
+                                    <td class="py-2 px-4 text-center">
+                                        <button ng-click="editarObra(o)" class="text-sky-600 hover:text-sky-800 mx-1 text-sm">Editar</button>
+                                        <button ng-click="eliminarObra(o)" class="text-red-500 hover:text-red-700 mx-1 text-sm">Eliminar</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div ng-show="activeTab === 2">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6">Comprobación de Gastos</h2>
+
+                <div class="bg-white p-6 rounded-xl shadow border border-gray-100 mb-8">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium text-marvi-900">{{ gastoActual.ID_COMPROBACION ? 'Editando Comprobación #'+gastoActual.ID_COMPROBACION : 'Nueva Comprobación' }}</h3>
+                        <button ng-click="limpiarGasto()" class="text-sm bg-gray-100 px-3 py-1 rounded hover:bg-gray-200">Limpiar Formulario</button>
+                    </div>
+
+                    <form ng-submit="guardarGasto()">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">FECHA</label>
+                                <input type="date" ng-model="gastoActual.FECHA" required class="w-full p-2 border rounded focus:ring-1 focus:ring-marvi-accent outline-none text-sm">
+                            </div>
+                            
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">VINCULAR A OBRA (ID - NOMBRE)</label>
+                                <select ng-model="gastoActual.OBRA_OBJ" ng-options="o.ID_OBRA + ' - ' + o.OBRA for o in obras track by o.ID_OBRA" ng-change="sincronizarObra()" required class="w-full p-2 border rounded focus:ring-1 focus:ring-marvi-accent outline-none text-sm bg-white">
+                                    <option value="">-- Selecciona una Obra --</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">DEDUCIBLE</label>
+                                <select ng-model="gastoActual.DEDUCIBLE" required class="w-full p-2 border rounded focus:ring-1 focus:ring-marvi-accent outline-none text-sm bg-white">
+                                    <option value="SI">SI</option>
+                                    <option value="NO">NO</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">FACTURA</label>
+                                <input type="text" ng-model="gastoActual.FACTURA" class="w-full p-2 border rounded text-sm uppercase">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">RFC</label>
+                                <input type="text" ng-model="gastoActual.RFC" class="w-full p-2 border rounded text-sm uppercase">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">PROVEEDOR</label>
+                                <input type="text" ng-model="gastoActual.PROVEEDOR" required class="w-full p-2 border rounded text-sm">
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">TRABAJADOR</label>
+                                <input type="text" ng-model="gastoActual.TRABAJADOR" required class="w-full p-2 border rounded text-sm">
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">TIPO DE PAGO</label>
+                                <select ng-model="gastoActual.TIPO_DE_PAGO" required class="w-full p-2 border rounded text-sm bg-white">
+                                    <option value="TARJETA DE DEBITO">TARJETA DE DÉBITO</option>
+                                    <option value="TARJETA DE CREDITO">TARJETA DE CRÉDITO</option>
+                                    <option value="EFECTIVO">EFECTIVO</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">SUBTOTAL</label>
+                                <input type="number" step="0.01" ng-model="gastoActual.SUBTOTAL" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">IVA</label>
+                                <input type="number" step="0.01" ng-model="gastoActual.IVA" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">RET IVA</label>
+                                <input type="number" step="0.01" ng-model="gastoActual.RET_IVA" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono text-red-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">RET ISR</label>
+                                <input type="number" step="0.01" ng-model="gastoActual.RET_ISR" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono text-red-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">DESCUENTO</label>
+                                <input type="number" step="0.01" ng-model="gastoActual.DESCUENTO" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono text-red-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">ISH</label>
+                                <input type="number" step="0.01" ng-model="gastoActual.ISH" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono">
+                            </div>
+                            
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-bold text-marvi-900 mb-1">TOTAL</label>
+                                <input type="number" step="0.01" ng-model="gastoActual.TOTAL" required class="w-full p-2 border-2 border-marvi-accent rounded text-sm font-mono font-bold text-lg bg-marvi-light">
+                            </div>
+
+                            <div class="md:col-span-2" ng-show="gastoActual.DEDUCIBLE === 'NO'">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">TIPO NO DEDUCIBLE</label>
+                                <input type="text" ng-model="gastoActual.TIPO_NO_DEDUCIBLE" class="w-full p-2 border rounded text-sm">
+                            </div>
+                            <div class="md:col-span-2" ng-show="gastoActual.DEDUCIBLE === 'NO'">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">MONTO NO DEDUCIBLE</label>
+                                <input type="number" step="0.01" ng-model="gastoActual.MONTO_NO_DEDUCIBLE" class="w-full p-2 border rounded text-sm font-mono">
+                            </div>
+
+                            <div class="md:col-span-4">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">DESCRIPCIÓN</label>
+                                <textarea ng-model="gastoActual.DESCRIPCION" rows="2" class="w-full p-2 border rounded text-sm"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 flex justify-end">
+                            <button type="submit" class="bg-marvi-accent text-white px-8 py-2 rounded-lg hover:bg-sky-600 transition font-semibold shadow-md">
+                                {{ gastoActual.ID_COMPROBACION ? 'Actualizar Gasto' : 'Registrar Gasto' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+                    <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
+                        <h3 class="font-medium text-gray-700">Registros ("COMPROBACION_GASTOS")</h3>
+                        <input type="text" ng-model="searchGasto" placeholder="Buscar gasto..." class="px-3 py-1 border rounded text-sm w-64">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse whitespace-nowrap">
+                            <thead>
+                                <tr class="bg-marvi-900 text-white text-xs uppercase">
+                                    <th class="py-2 px-3">ID</th>
+                                    <th class="py-2 px-3">Fecha</th>
+                                    <th class="py-2 px-3">Obra</th>
+                                    <th class="py-2 px-3">Proveedor</th>
+                                    <th class="py-2 px-3">Factura</th>
+                                    <th class="py-2 px-3">Total</th>
+                                    <th class="py-2 px-3 text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="g in gastos | filter:searchGasto" class="border-b hover:bg-gray-50 text-sm transition">
+                                    <td class="py-2 px-3 font-mono text-gray-500">{{g.ID_COMPROBACION}}</td>
+                                    <td class="py-2 px-3">{{ g.FECHA | date:'dd/MM/yyyy' }}</td>
+                                    <td class="py-2 px-3">{{g.OBRA}}</td>
+                                    <td class="py-2 px-3">{{g.PROVEEDOR}}</td>
+                                    <td class="py-2 px-3">{{g.FACTURA || 'S/F'}}</td>
+                                    <td class="py-2 px-3 font-mono font-bold">${{g.TOTAL | number:2}}</td>
+                                    <td class="py-2 px-3 text-center">
+                                        <button ng-click="editarGasto(g)" class="text-sky-600 hover:text-sky-800 mx-1 text-xs font-semibold">Editar</button>
+                                        <button ng-click="eliminarGasto(g)" class="text-red-500 hover:text-red-700 mx-1 text-xs font-semibold">Eliminar</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div ng-show="activeTab === 3">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold text-gray-800">Reportes y Analíticas</h2>
+                </div>
+                <div class="bg-white p-10 rounded-xl shadow border border-gray-100 text-center flex flex-col items-center justify-center min-h-[400px]">
+                    <div class="w-16 h-16 bg-marvi-light text-marvi-accent rounded-full flex items-center justify-center mb-4">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-700 mb-2">Fase de Integración de Google Sheets Pendiente</h3>
+                    <p class="text-gray-500 max-w-md">Esta sección mostrará gráficos interactivos de los gastos por obra y análiticas una vez que el prototipo pase a fase de producción y conectemos la base de datos de Google Sheets.</p>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="bg-white border-t border-gray-200 py-6 mt-auto">
+            <div class="max-w-7xl mx-auto px-4 text-center text-sm text-gray-500">
+                &copy; 2026 Marvi confort de México S.A. de C.V. - Todos los derechos reservados.
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const app = angular.module('marviApp', []);
+
+        app.controller('MainController', function($scope) {
+            // --- ESTADOS Y LOGIN ---
+            $scope.isLoggedIn = false;
+            $scope.loginData = {};
+            $scope.loginError = false;
+            $scope.activeTab = 1;
+
+            $scope.login = function() {
+                if($scope.loginData.username === 'admin' && $scope.loginData.password === '2026') {
+                    $scope.isLoggedIn = true;
+                    $scope.loginError = false;
+                } else {
+                    $scope.loginError = true;
+                }
+            };
+
+            $scope.logout = function() {
+                $scope.isLoggedIn = false;
+                $scope.loginData = {};
+                $scope.activeTab = 1;
+            };
+
+            // --- SIMULACIÓN DE BASE DE DATOS (GOOGLE SHEETS) ---
+            // ID Autoincrementables
+            let nextObraId = 3;
+            let nextGastoId = 2;
+
+            $scope.obras = [
+                { ID_OBRA: 1, OBRA: 'SORIANA HIPER TORREON' },
+                { ID_OBRA: 2, OBRA: 'SORIANA HIPER GUADALAJARA' }
+            ];
+
+            $scope.gastos = [
+                {
+                    ID_COMPROBACION: 1,
+                    FECHA: new Date('2026-05-25T00:00:00'),
+                    DEDUCIBLE: 'SI',
+                    FACTURA: 'FAC-001',
+                    PROVEEDOR: 'Refrigeración Especializada SA',
+                    TRABAJADOR: 'Juan Pérez',
+                    ID_OBRA: 1,
+                    OBRA: 'SORIANA HIPER TORREON',
+                    SUBTOTAL: 5000,
+                    IVA: 800,
+                    RET_IVA: 0,
+                    RET_ISR: 0,
+                    DESCUENTO: 0,
+                    ISH: 0,
+                    TOTAL: 5800,
+                    TIPO_DE_PAGO: 'TARJETA DE DEBITO',
+                    DESCRIPCION: 'Compra de gas refrigerante R-410A',
+                    RFC: 'RESA990101XYZ'
+                }
+            ];
+
+            // --- LÓGICA: PESTAÑA 1 (OBRAS) ---
+            $scope.obraActual = {};
+
+            $scope.guardarObra = function() {
+                if($scope.obraActual.ID_OBRA) {
+                    // Actualizar
+                    let index = $scope.obras.findIndex(o => o.ID_OBRA === $scope.obraActual.ID_OBRA);
+                    if(index !== -1) {
+                        $scope.obras[index] = angular.copy($scope.obraActual);
+                        
+                        // Si se actualiza el nombre, actualizar cascada en gastos
+                        $scope.gastos.forEach(g => {
+                            if(g.ID_OBRA === $scope.obraActual.ID_OBRA) {
+                                g.OBRA = $scope.obraActual.OBRA;
+                            }
+                        });
+                    }
+                } else {
+                    // Nuevo
+                    let nueva = angular.copy($scope.obraActual);
+                    nueva.ID_OBRA = nextObraId++;
+                    $scope.obras.push(nueva);
+                }
+                $scope.limpiarObra();
+            };
+
+            $scope.editarObra = function(obra) {
+                $scope.obraActual = angular.copy(obra);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            $scope.eliminarObra = function(obra) {
+                // REGLA DE NEGOCIO: Proteger integridad referencial
+                let estaLigada = $scope.gastos.some(g => g.ID_OBRA === obra.ID_OBRA);
+                if(estaLigada) {
+                    alert('ACCION DENEGADA: Esta obra no puede eliminarse porque ya tiene comprobaciones de gastos vinculadas. Elimine los gastos primero.');
+                    return;
+                }
+                if(confirm('¿Está seguro de eliminar la obra: ' + obra.OBRA + '?')) {
+                    $scope.obras = $scope.obras.filter(o => o.ID_OBRA !== obra.ID_OBRA);
+                }
+            };
+
+            $scope.limpiarObra = function() {
+                $scope.obraActual = {};
+            };
+
+            // --- LÓGICA: PESTAÑA 2 (GASTOS) ---
+            $scope.gastoActual = { DEDUCIBLE: 'SI', TIPO_DE_PAGO: 'TARJETA DE DEBITO' };
+
+            // Sincroniza el Combobox de Objeto a campos individuales
+            $scope.sincronizarObra = function() {
+                if($scope.gastoActual.OBRA_OBJ) {
+                    $scope.gastoActual.ID_OBRA = $scope.gastoActual.OBRA_OBJ.ID_OBRA;
+                    $scope.gastoActual.OBRA = $scope.gastoActual.OBRA_OBJ.OBRA;
+                } else {
+                    $scope.gastoActual.ID_OBRA = null;
+                    $scope.gastoActual.OBRA = null;
+                }
+            };
+
+            // Calcula automáticamente el total basado en los campos
+            $scope.calcularTotal = function() {
+                let sub = parseFloat($scope.gastoActual.SUBTOTAL) || 0;
+                let iva = parseFloat($scope.gastoActual.IVA) || 0;
+                let ish = parseFloat($scope.gastoActual.ISH) || 0;
+                let ret_iva = parseFloat($scope.gastoActual.RET_IVA) || 0;
+                let ret_isr = parseFloat($scope.gastoActual.RET_ISR) || 0;
+                let desc = parseFloat($scope.gastoActual.DESCUENTO) || 0;
+
+                $scope.gastoActual.TOTAL = (sub + iva + ish) - (ret_iva + ret_isr + desc);
+                // Redondear a 2 decimales
+                $scope.gastoActual.TOTAL = Math.round($scope.gastoActual.TOTAL * 100) / 100;
+            };
+
+            $scope.guardarGasto = function() {
+                // Limpieza de objeto para no guardar el proxy del select en DB
+                let dataToSave = angular.copy($scope.gastoActual);
+                delete dataToSave.OBRA_OBJ; 
+
+                if(dataToSave.ID_COMPROBACION) {
+                    // Actualizar
+                    let index = $scope.gastos.findIndex(g => g.ID_COMPROBACION === dataToSave.ID_COMPROBACION);
+                    if(index !== -1) {
+                        $scope.gastos[index] = dataToSave;
+                    }
+                } else {
+                    // Nuevo
+                    dataToSave.ID_COMPROBACION = nextGastoId++;
+                    $scope.gastos.push(dataToSave);
+                }
+                $scope.limpiarGasto();
+            };
+
+            $scope.editarGasto = function(gasto) {
+                $scope.gastoActual = angular.copy(gasto);
+                
+                // Formatear fecha para el input date
+                if(typeof $scope.gastoActual.FECHA === 'string') {
+                    $scope.gastoActual.FECHA = new Date($scope.gastoActual.FECHA);
+                }
+                
+                // Vincular de nuevo el objeto de la obra al select
+                let obraMatcheada = $scope.obras.find(o => o.ID_OBRA === gasto.ID_OBRA);
+                if(obraMatcheada) {
+                    $scope.gastoActual.OBRA_OBJ = obraMatcheada;
+                }
+                
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            $scope.eliminarGasto = function(gasto) {
+                // REGLA DE NEGOCIO: La eliminación de gastos es segura respecto a la obra (No borra la obra padre)
+                if(confirm('¿Eliminar la comprobación #' + gasto.ID_COMPROBACION + ' ('+gasto.PROVEEDOR+')?')) {
+                    $scope.gastos = $scope.gastos.filter(g => g.ID_COMPROBACION !== gasto.ID_COMPROBACION);
+                }
+            };
+
+            $scope.limpiarGasto = function() {
+                $scope.gastoActual = { DEDUCIBLE: 'SI', TIPO_DE_PAGO: 'TARJETA DE DEBITO' };
+            };
+        });
+    </script>
+</body>
+</html>

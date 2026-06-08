@@ -1,0 +1,47 @@
+https://script.google.com/macros/s/AKfycbxiX9wSxuMJcCl3UW_BkCr00czl8xq_gXkYUAPSvwqeDgOQ-rMe2JHFP0nODv0G9ZT3fg/exec
+
+
+Vamos a desarrollar esta aplicación a partir de este código, te estaré proporcionando instrucciones y poco a poco vamos a ir embonando todo de manera escalable y optimizada. Esto es un prototipo que en su momento vamos a hacer 100% funcional, pero primero es necesario desarrollar el apartado de "Reportes" para mostrar a manera de piloto las capacidades que tendrá esta app web, e ir puliendo algunos detalles. La meta es crear una app web tipo CRUD que genere reportes PDF, Excel y graficos.
+
+Importante: Elimina los datos ficticios que estén dentro del código fuente, ya todo debe ser leído de la Hoja de Calculo
+
+Toda la información la vamos a leer y a guardar en un Google Sheets por lo que vamos a necesitar una App Script
+
+En "Alta de Obras" se debe poder buscar, leer y alimentar de la hoja "OBRAS" del archivo de Google Sheets: Marvi-Confort 
+
+Hay un apartado llamado "Comprobación de Gastos" en su momento de desde aquí se van a poder dar de alta las comprobaciones, buscarlas, actualizarlas, etc, según sea el caso. De ser posible que a manera de histórico se muestre debajo del formulario de ese apartado una tabla con los datos del archivo.
+
+Nombre de la hoja: COMPROBACION_GASTOS
+
+En la pestaña de "Reportes" debes generar los Reportes y Analíticas:
+
+Este apartado debe generar graficos, por ejemplo que muestre la distribución de gastos por PROVEEDOR, que permita generar reportes tanto en PDF como en Excel por proveedor, fechas, "deducible", trabajador, etc, reportes de alto impacto visual con gran estética, usando librerías gratuitas y teniendo cuidado con los CDN, altamente responsiva y escalable
+
+Vamos armando una propuesta
+
+Proporcioname el código integrado en un HTML y el código de la apps script
+
+Campos por hoja en Google Sheet:
+
+Hoja "OBRAS": ID_OBRA, OBRA
+
+Hoja "COMPROBACION_GASTOS": ID_COMPROBACION, FECHA, DEDUCIBLE, FACTURA, PROVEEDOR, TRABAJADOR, OBRA, SUBTOTAL, IVA, RET_IVA, RET_ISR, DESCUENTO, ISH, TOTAL, TIPO_DE_PAGO, DESCRIPCION, RFC, ID_OBRA, OBRA
+
+
+=========
+
+Vamos a desarrollar esta aplicación web tomando como base el código existente. A partir de ahora te proporcionaré requerimientos e instrucciones de forma incremental para construir una solución escalable, optimizada, mantenible y preparada para evolucionar hacia una versión completamente funcional. En esta primera etapa el objetivo principal es desarrollar el módulo de **Reportes y Analíticas** como prueba de concepto (MVP), permitiendo demostrar las capacidades de la plataforma y refinar aspectos funcionales y visuales antes de completar el resto de los módulos. La aplicación tendrá un enfoque tipo CRUD y deberá permitir la gestión de información, generación de reportes en PDF y Excel, así como visualización de métricas mediante gráficos interactivos. Es indispensable eliminar cualquier dato ficticio o hardcodeado existente en el código fuente; toda la información deberá ser leída y almacenada exclusivamente en Google Sheets mediante una integración con Google Apps Script. El módulo **Alta de Obras** deberá consultar, registrar, actualizar y buscar información en la hoja **OBRAS** del archivo de Google Sheets denominado **Marvi-Confort**, utilizando los campos: ID_OBRA y OBRA. El módulo **Comprobación de Gastos** deberá quedar preparado para administrar comprobaciones de gastos mediante operaciones de alta, consulta, edición y actualización sobre la hoja **COMPROBACION_GASTOS**, mostrando además un histórico en forma de tabla debajo del formulario para facilitar la consulta de registros existentes. Los campos de esta hoja son: ID_COMPROBACION, FECHA, DEDUCIBLE, FACTURA, PROVEEDOR, TRABAJADOR, OBRA, SUBTOTAL, IVA, RET_IVA, RET_ISR, DESCUENTO, ISH, TOTAL, TIPO_DE_PAGO, DESCRIPCION, RFC, ID_OBRA y OBRA. En la pestaña **Reportes** se deberán generar dashboards y analíticas de alto impacto visual utilizando librerías gratuitas, modernas y compatibles con CDN confiables, priorizando siempre la responsividad, escalabilidad y experiencia de usuario. Entre las funcionalidades requeridas se incluyen gráficos de distribución de gastos por proveedor, trabajador, obra, tipo de pago y condición de deducibilidad, así como filtros avanzados por fechas, proveedor, trabajador, obra y otros criterios relevantes. Además, el sistema deberá permitir exportar reportes profesionales en PDF y Excel con diseño corporativo, tablas, métricas, indicadores y gráficos integrados. Conforme avancemos en el desarrollo, propón mejoras técnicas, funcionales y de arquitectura que favorezcan el rendimiento, la mantenibilidad y la futura expansión del sistema. Cada entrega deberá incluir el código completo e integrado tanto del frontend (HTML, CSS y JavaScript) como del backend en Google Apps Script, asegurando una integración limpia y lista para producción.
+
+
+==========
+
+Me parece una buena propuesta, enfócate en modificar lo siguiente:
+
+Eliminar: Distribución por Proveedor Destacado, y Comportamiento del IVA y Retenciones
+
+Actualizar: En Proporción por Tipo de Pago, que cada rubro (rebanada del pastel) sea de un color diferente
+
+Nuevas: Añade una grafica de gastos por trabajador, separados por DEDUCIBLES y NO DEDUCIBLES
+
+La exportación a Excel me fascina, pero en el PDF procura acomodar los graficos uno por página, preeve que quizá llegue un punto donde sean tantos elementos que no se vean del todo bien, en esos casos piensa en como acomodar todo
+

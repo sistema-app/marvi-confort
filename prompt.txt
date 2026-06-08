@@ -1,0 +1,65 @@
+Crea una app web de una sola pagina tipo SPA utilizando Angular, Tailwaind, HTML, JS, etc, pero todo integrado en un solo documento HTML para su despliegue en GitHub Pages, plataforma responsiva, altamente estética, escalable y altamente tecnológica. Vamos desarrollando esta primera fase:
+
+Iniciar con un Login
+
+Marvi Confort
+
+Usuario:
+Contraseña:
+Botones aceptar | cancelar
+
+usuario (admin) y contraseña (2026) embebida en el código ya que esta fase es el prototipo
+
+Titulo: Automatización de Comprobación de Gastos
+
+Body: 
+
+3 pestañas:
+
+1) Alta de obras
+
+Formulario que permita BUSCAR, REGISTRAR, ACTUALIZAR, ELIMINAR (piensa como cuidar que si ya se ligo esa obra a comprobaciones no poder borrarla)
+
+capturar la siguiente información de manera eficiente:
+
+ID_OBRA	- ENTERO - AUTOINCREMENTABLE
+OBRA - CAJA DE TEXTO
+
+2) Comprobación de gastos
+
+Formulario que permita BUSCAR, REGISTRAR, ACTUALIZAR, ELIMINAR (piensa como cuidar que si ya se ligo esa comprobación a una obra que hacer de manera especifica)
+
+ID_COMPROBACION	- ENTERO - AUTOINCREMENTABLE
+FECHA	- CALENDARIO EMERGENTE - DD/MM/AAA
+DEDUCIBLE - TEXTO - SI/NO
+FACTURA	- TEXTO - CAJA DE TEXTO
+PROVEEDOR - TEXTO - CAJA DE TEXTO
+TRABAJADOR - TEXTO - CAJA DE TEXTO
+OBRA - TEXTO - CAJA DE TEXTO
+SUBTOTAL - FLOTANTE - CAJA DE TEXTO SOLO PERMITIR NUMEROS
+IVA - FLOTANTE - CAJA DE TEXTO SOLO PERMITIR NUMEROS
+RET_IVA	- FLOTANTE - CAJA DE TEXTO SOLO PERMITIR NUMEROS
+RET_ISR	- FLOTANTE - CAJA DE TEXTO SOLO PERMITIR NUMEROS
+DESCUENTO - FLOTANTE - CAJA DE TEXTO SOLO PERMITIR NUMEROS
+ISH - FLOTANTE - CAJA DE TEXTO SOLO PERMITIR NUMEROS
+TOTAL - FLOTANTE - CAJA DE TEXTO SOLO PERMITIR NUMEROS
+TIPO_DE_PAGO - TEXTO - TARJETA DE DEBITO/TARJETA DE CREDITO/EFECTIVO
+DESCRIPCION - TEXTO - CAJA DE TEXTO
+RFC - TEXTO - CAJA DE TEXTO
+ID_OBRA - ENTERO - COMBOBOX CON LOS ID DE LA HOJA "OBRAS"
+OBRA - ENTERO - COMBOBOX CON LAS OBRA DE LA HOJA "OBRAS"
+TIPO_NO_DEDUCIBLE - TEXTO - CAJA DE TEXTO
+MONTO_NO_DEDUCIBLE - TEXTO - CAJA DE TEXTO
+
+3) Reportes
+
+
+Footer: Marvi confort de México S.A. de C.V.
+
+
+Nota 1: el giro comercial es de aires acondicionados, dale un aspecto fresco y estilizado pero sin ser tan predecible.
+
+Nota 2: Piensalo como un sistema CRUD escalable, siempre vamos a usar Google Sheets como base de datos simulada
+
+Hoja de Google Sheets: "Marvi-Confort" Hojas: "OBRAS" y "COMPROBACION_GASTOS"
+
