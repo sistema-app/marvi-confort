@@ -13,15 +13,12 @@
     </script>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <style>
         input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         .ng-hide { display: none !important; }
         .chart-container { position: relative; height: 300px; width: 100%; }
         .chart-container-large { position: relative; height: 350px; width: 100%; }
-        /* Efecto Glassmorphism para Contadores */
-        .glass-panel { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col" ng-controller="MainController">
@@ -30,12 +27,14 @@
         <div class="bg-white p-10 rounded-2xl shadow-2xl w-96 border-t-4 border-marvi-accent">
             <h1 class="text-3xl font-bold text-center text-marvi-900 mb-2">Marvi Confort</h1>
             <p class="text-sm text-center text-gray-500 mb-8">Automatización de Gastos</p>
+            <div ng-show="configError" class="bg-red-100 text-red-700 p-3 rounded mb-4 text-xs font-bold text-center">
+                Error: No se encontró conexion.json
+            </div>
             <form ng-submit="login()">
                 <div class="mb-4"><label class="block text-sm font-semibold text-gray-700 mb-1">Usuario</label><input type="text" ng-model="loginData.username" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-marvi-accent bg-slate-50" required></div>
                 <div class="mb-6"><label class="block text-sm font-semibold text-gray-700 mb-1">Contraseña</label><input type="password" ng-model="loginData.password" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-marvi-accent bg-slate-50" required></div>
                 <div class="flex gap-4">
-                    <button type="button" ng-click="loginData = {}" class="w-1/2 py-2 text-gray-600 bg-gray-200 rounded-lg">Cancelar</button>
-                    <button type="submit" class="w-1/2 py-2 text-white bg-marvi-accent rounded-lg shadow-lg">Aceptar</button>
+                    <button type="submit" ng-disabled="!apiUrl" class="w-full py-2 text-white bg-marvi-accent rounded-lg shadow-lg disabled:opacity-50">Ingresar</button>
                 </div>
                 <p class="text-red-500 text-sm mt-3 text-center" ng-show="loginError">Credenciales incorrectas.</p>
             </form>
@@ -68,8 +67,7 @@
                         <h3 class="text-lg font-medium text-marvi-900 mb-4">{{ obraActual.ID_OBRA ? 'Actualizar' : 'Registrar' }} Obra</h3>
                         <form ng-submit="guardarObra()">
                             <div class="mb-4"><label class="block text-xs font-semibold text-gray-500 mb-1">ID OBRA</label><input type="text" ng-model="obraActual.ID_OBRA" disabled class="w-full px-3 py-2 bg-gray-100 border rounded text-gray-500"></div>
-                            <div class="mb-4"><label class="block text-xs font-semibold text-gray-500 mb-1">NOMBRE DE LA OBRA</label><input type="text" ng-model="obraActual.OBRA" required class="w-full px-3 py-2 border rounded uppercase"></div>
-                            <div class="mb-6"><label class="block text-xs font-bold text-emerald-600 mb-1">MONTO VENDIDO (PRESUPUESTO)</label><input type="number" step="0.01" ng-model="obraActual.VENTA_TOTAL" class="w-full px-3 py-2 border rounded font-mono text-emerald-700 bg-emerald-50"></div>
+                            <div class="mb-6"><label class="block text-xs font-semibold text-gray-500 mb-1">NOMBRE DE LA OBRA</label><input type="text" ng-model="obraActual.OBRA" required class="w-full px-3 py-2 border rounded uppercase"></div>
                             <div class="flex gap-2">
                                 <button type="submit" ng-disabled="loading" class="w-full bg-marvi-accent text-white py-2 rounded">Guardar</button>
                                 <button type="button" ng-click="limpiarObra()" class="w-full bg-gray-200 text-gray-700 py-2 rounded">Limpiar</button>
@@ -82,12 +80,12 @@
                         <table class="w-full text-left border-collapse">
                             <thead>
                                 <tr class="bg-marvi-900 text-white text-sm">
-                                    <th class="py-3 px-4">ID</th><th class="py-3 px-4">OBRA</th><th class="py-3 px-4">VENTA/PPT</th><th class="py-3 px-4 text-center">ACCIONES</th>
+                                    <th class="py-3 px-4">ID</th><th class="py-3 px-4">OBRA</th><th class="py-3 px-4 text-center">ACCIONES</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr ng-repeat="o in obras | filter:searchObra" class="border-b hover:bg-gray-50 text-sm">
-                                    <td class="py-2 px-4 font-mono">{{o.ID_OBRA}}</td><td class="py-2 px-4 font-medium">{{o.OBRA}}</td><td class="py-2 px-4 font-mono text-emerald-600">${{o.VENTA_TOTAL | number:2}}</td>
+                                    <td class="py-2 px-4 font-mono">{{o.ID_OBRA}}</td><td class="py-2 px-4 font-medium">{{o.OBRA}}</td>
                                     <td class="py-2 px-4 text-center"><button ng-click="editarObra(o)" class="text-sky-600 mx-1">Editar</button><button ng-click="eliminarObra(o)" class="text-red-500 mx-1">Eliminar</button></td>
                                 </tr>
                             </tbody>
@@ -99,112 +97,116 @@
             <div ng-show="activeTab === 2">
                 <div class="bg-white p-6 rounded-xl shadow border border-gray-100 mb-8">
                     <form ng-submit="guardarGasto()">
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div><label class="block text-xs font-semibold text-gray-500 mb-1">FECHA</label><input type="date" ng-model="gastoActual._FECHA_RAW" ng-change="formatearFechaGasto()" required class="w-full p-2 border rounded text-sm"></div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <div><label class="block text-xs font-bold text-purple-600 mb-1">ID GRUPO COMPROBACIÓN</label><input type="text" ng-model="gastoActual.ID_GRUPO_COMPROBACION" placeholder="Ej. GRP-001" required class="w-full p-2 border-2 border-purple-300 rounded text-sm uppercase bg-purple-50"></div>
                             <div class="md:col-span-2"><label class="block text-xs font-semibold text-gray-500 mb-1">VINCULAR A OBRA</label><select ng-model="gastoActual.OBRA_OBJ" ng-options="o as (o.ID_OBRA + ' - ' + o.OBRA) for o in obras track by o.ID_OBRA" ng-change="sincronizarObra()" required class="w-full p-2 border rounded text-sm bg-white"><option value="">-- Selecciona --</option></select></div>
-                            <div><label class="block text-xs font-bold text-purple-600 mb-1">ID GRUPO COMPROBACIÓN</label><input type="text" ng-model="gastoActual.ID_GRUPO_COMPROBACION" placeholder="Ej. GRP-001" class="w-full p-2 border-2 border-purple-200 rounded text-sm uppercase font-bold bg-purple-50"></div>
-                            
+                            <div><label class="block text-xs font-semibold text-gray-500 mb-1">FECHA</label><input type="date" ng-model="gastoActual._FECHA_RAW" required class="w-full p-2 border rounded text-sm"></div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                             <div><label class="block text-xs font-semibold text-gray-500 mb-1">DEDUCIBLE</label><select ng-model="gastoActual.DEDUCIBLE" class="w-full p-2 border rounded text-sm bg-white"><option value="SI">SI</option><option value="NO">NO</option></select></div>
                             <div><label class="block text-xs font-semibold text-gray-500 mb-1">FACTURA</label><input type="text" ng-model="gastoActual.FACTURA" class="w-full p-2 border rounded text-sm uppercase"></div>
+                            <div><label class="block text-xs font-semibold text-gray-500 mb-1">RFC</label><input type="text" ng-model="gastoActual.RFC" class="w-full p-2 border rounded text-sm uppercase"></div>
+                            <div><label class="block text-xs font-semibold text-gray-500 mb-1">TIPO DE PAGO</label><select ng-model="gastoActual.TIPO_DE_PAGO" class="w-full p-2 border rounded text-sm bg-white"><option value="TARJETA DE DEBITO">DEBITO</option><option value="TARJETA DE CREDITO">CREDITO</option><option value="EFECTIVO">EFECTIVO</option><option value="TRANSFERENCIA">TRANSFERENCIA</option></select></div>
                             <div class="md:col-span-2"><label class="block text-xs font-semibold text-gray-500 mb-1">PROVEEDOR</label><input type="text" ng-model="gastoActual.PROVEEDOR" required class="w-full p-2 border rounded text-sm uppercase"></div>
-
-                            <input type="hidden" ng-model="gastoActual.FOLIO_FISCAL">
-                            <input type="hidden" ng-model="gastoActual.FECHA_FOLIO_FISCAL">
-
                             <div class="md:col-span-2"><label class="block text-xs font-semibold text-gray-500 mb-1">TRABAJADOR</label><input type="text" ng-model="gastoActual.TRABAJADOR" required class="w-full p-2 border rounded text-sm uppercase"></div>
-                            <div class="md:col-span-2"><label class="block text-xs font-semibold text-gray-500 mb-1">TIPO DE PAGO</label><select ng-model="gastoActual.TIPO_DE_PAGO" class="w-full p-2 border rounded text-sm bg-white"><option value="TARJETA DE DEBITO">DEBITO</option><option value="TARJETA DE CREDITO">CREDITO</option><option value="EFECTIVO">EFECTIVO</option><option value="TRANSFERENCIA">TRANSFERENCIA</option></select></div>
+                            <div class="md:col-span-4"><label class="block text-xs font-semibold text-gray-500 mb-1">DESCRIPCIÓN</label><textarea ng-model="gastoActual.DESCRIPCION" rows="2" class="w-full p-2 border rounded text-sm uppercase"></textarea></div>
+                        </div>
 
+                        <hr class="my-4">
+
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                             <div><label class="block text-xs font-semibold text-gray-500 mb-1">SUBTOTAL</label><input type="number" step="0.01" ng-model="gastoActual.SUBTOTAL" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono" required></div>
                             <div><label class="block text-xs font-semibold text-gray-500 mb-1">IVA</label><input type="number" step="0.01" ng-model="gastoActual.IVA" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono"></div>
                             <div><label class="block text-xs font-semibold text-gray-500 mb-1">RET IVA</label><input type="number" step="0.01" ng-model="gastoActual.RET_IVA" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono text-red-500"></div>
                             <div><label class="block text-xs font-semibold text-gray-500 mb-1">RET ISR</label><input type="number" step="0.01" ng-model="gastoActual.RET_ISR" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono text-red-500"></div>
                             <div><label class="block text-xs font-semibold text-gray-500 mb-1">DESCUENTO</label><input type="number" step="0.01" ng-model="gastoActual.DESCUENTO" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono text-red-500"></div>
                             <div><label class="block text-xs font-semibold text-gray-500 mb-1">ISH</label><input type="number" step="0.01" ng-model="gastoActual.ISH" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono"></div>
-                            <div class="md:col-span-2"><label class="block text-sm font-bold text-marvi-900 mb-1">TOTAL CALCULADO</label><input type="number" step="0.01" ng-model="gastoActual.TOTAL" disabled class="w-full p-2 border-2 border-marvi-accent rounded text-sm font-mono font-bold text-lg bg-marvi-light text-slate-900 cursor-not-allowed"></div>
+                            <div class="md:col-span-2"><label class="block text-sm font-bold text-marvi-900 mb-1">TOTAL (Registro Actual)</label><input type="number" step="0.01" ng-model="gastoActual.TOTAL" disabled class="w-full p-2 border-2 border-marvi-accent rounded text-sm font-mono font-bold bg-marvi-light text-slate-900"></div>
                         </div>
-                        <div class="mt-4 flex justify-end gap-2">
-                            <button type="button" ng-click="limpiarGasto()" class="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300">Limpiar</button>
+
+                        <hr class="my-4">
+
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                            <div><label class="block text-xs font-semibold text-gray-500 mb-1">FOLIO FISCAL</label><select ng-model="gastoActual.FOLIO_FISCAL" ng-change="limpiarFecha('FECHA_FOLIO_FISCAL', 'FOLIO_FISCAL')" class="w-full p-2 border rounded text-sm bg-white"><option value="SI">SI</option><option value="NO">NO</option></select></div>
+                            <div><label class="block text-xs font-semibold text-gray-500 mb-1">FECHA FOLIO FISCAL</label><input type="date" ng-model="gastoActual._FECHA_FOLIO_FISCAL_RAW" ng-disabled="gastoActual.FOLIO_FISCAL == 'NO'" ng-required="gastoActual.FOLIO_FISCAL == 'SI'" class="w-full p-2 border rounded text-sm disabled:bg-gray-100"></div>
+                            
+                            <div><label class="block text-xs font-semibold text-gray-500 mb-1">PAGO NO DEDUCIBLE</label><select ng-model="gastoActual.MONTO_TOTAL_NO_DEDUCIBLE_PAGADO" ng-change="limpiarFecha('FECHA_PAGO_NO_DEDUCIBLE', 'MONTO_TOTAL_NO_DEDUCIBLE_PAGADO')" class="w-full p-2 border rounded text-sm bg-white"><option value="SI">SI</option><option value="NO">NO</option></select></div>
+                            <div><label class="block text-xs font-semibold text-gray-500 mb-1">FECHA PAGO NO DEDUCIBLE</label><input type="date" ng-model="gastoActual._FECHA_PAGO_NO_DEDUCIBLE_RAW" ng-disabled="gastoActual.MONTO_TOTAL_NO_DEDUCIBLE_PAGADO == 'NO'" ng-required="gastoActual.MONTO_TOTAL_NO_DEDUCIBLE_PAGADO == 'SI'" class="w-full p-2 border rounded text-sm disabled:bg-gray-100"></div>
+                            
+                            <div class="md:col-span-2"><label class="block text-xs font-bold text-emerald-600 mb-1">MONTO TOTAL DEDUCIBLE A PAGAR (Cálculo Nube)</label><input type="number" ng-model="gastoActual.MONTO_TOTAL_DEDUCIBLE_A_PAGAR" disabled class="w-full p-2 border border-emerald-200 rounded text-sm font-mono font-bold bg-emerald-50 text-emerald-700"></div>
+                            <div class="md:col-span-2"><label class="block text-xs font-bold text-red-600 mb-1">MONTO TOTAL NO DEDUCIBLE A PAGAR (Cálculo Nube)</label><input type="number" ng-model="gastoActual.MONTO_TOTAL_NO_DEDUCIBLE_A_PAGAR" disabled class="w-full p-2 border border-red-200 rounded text-sm font-mono font-bold bg-red-50 text-red-700"></div>
+                        </div>
+
+                        <div class="mt-6 flex justify-end gap-2">
+                            <button type="button" ng-click="limpiarGasto()" class="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300">Limpiar Formulario</button>
                             <button type="submit" ng-disabled="loading" class="bg-marvi-accent text-white px-8 py-2 rounded hover:bg-sky-600 font-semibold shadow-md">Guardar Gasto</button>
                         </div>
                     </form>
+                </div>
+
+                <div class="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+                    <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+                        <h3 class="font-bold text-gray-700 text-sm">Registro Histórico ("COMPROBACION_GASTOS")</h3>
+                        <input type="text" ng-model="searchGasto" placeholder="Buscar..." class="px-3 py-1 border rounded text-sm w-1/3">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse whitespace-nowrap">
+                            <thead>
+                                <tr class="bg-marvi-900 text-white text-xs uppercase">
+                                    <th class="py-2 px-3">ID</th><th class="py-2 px-3">Grupo</th><th class="py-2 px-3">Fecha</th><th class="py-2 px-3">Obra</th><th class="py-2 px-3">Proveedor</th><th class="py-2 px-3">Total</th><th class="py-2 px-3 text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="g in gastos | filter:searchGasto" class="border-b hover:bg-gray-50 text-sm">
+                                    <td class="py-2 px-3 font-mono">{{g.ID_COMPROBACION}}</td>
+                                    <td class="py-2 px-3 font-mono font-bold text-purple-700">{{g.ID_GRUPO_COMPROBACION}}</td>
+                                    <td class="py-2 px-3">{{ g.FECHA | date:'dd/MM/yyyy' }}</td>
+                                    <td class="py-2 px-3 font-medium">{{g.OBRA}}</td>
+                                    <td class="py-2 px-3">{{g.PROVEEDOR}}</td>
+                                    <td class="py-2 px-3 font-mono font-bold">${{g.TOTAL | number:2}}</td>
+                                    <td class="py-2 px-3 text-center">
+                                        <button ng-click="editarGasto(g)" class="text-sky-600 font-semibold mx-1 text-xs">Editar</button>
+                                        <button ng-click="eliminarGasto(g)" class="text-red-500 font-semibold mx-1 text-xs">Eliminar</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
             <div ng-show="activeTab === 3">
                 
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-slate-800">
-                        <p class="text-xs font-bold text-gray-400">OBRAS ACTIVAS / TOTALES</p>
-                        <h3 class="text-2xl font-bold text-slate-800 mt-1">{{kpis.obrasActivas}} <span class="text-sm text-gray-400">/ {{kpis.totalObras}}</span></h3>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-emerald-500">
-                        <p class="text-xs font-bold text-gray-400">MONTO TOTAL VENDIDO (GLOBAL)</p>
-                        <h3 class="text-2xl font-bold text-emerald-600 mt-1">${{kpis.montoVendido | number:2}}</h3>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-marvi-accent">
-                        <p class="text-xs font-bold text-gray-400">GASTO TOTAL EJECUTADO</p>
-                        <h3 class="text-2xl font-bold text-marvi-accent mt-1">${{kpis.total | number:2}}</h3>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-amber-500">
-                        <p class="text-xs font-bold text-gray-400">MARGEN BRUTO APROX.</p>
-                        <h3 class="text-2xl font-bold text-amber-600 mt-1">${{(kpis.montoVendido - kpis.total) | number:2}}</h3>
-                    </div>
-                </div>
-
-                <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 p-1 mb-8 shadow-2xl">
-                    <div class="glass-panel rounded-xl p-6 relative z-10">
-                        <div class="flex justify-between items-center mb-6">
-                            <div>
-                                <h3 class="text-xl font-bold text-white tracking-wide">Resumen Fiscal por Grupo de Comprobación</h3>
-                                <p class="text-xs text-indigo-200 mt-1">Cálculos automáticos de deducibilidad para el departamento contable.</p>
-                            </div>
-                            <span class="px-3 py-1 bg-indigo-500/30 border border-indigo-400/50 text-indigo-100 text-xs rounded-full shadow-[0_0_15px_rgba(99,102,241,0.4)]">
-                                Vista Asegurada
-                            </span>
-                        </div>
-
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead>
-                                    <tr class="text-indigo-200 text-xs uppercase border-b border-indigo-500/30">
-                                        <th class="py-3 px-4 font-semibold">ID Grupo</th>
-                                        <th class="py-3 px-4 font-semibold text-right">No. Transacciones</th>
-                                        <th class="py-3 px-4 font-semibold text-right text-emerald-400">Monto Deducible (SI)</th>
-                                        <th class="py-3 px-4 font-semibold text-right text-rose-400">Monto No Deducible (NO)</th>
-                                        <th class="py-3 px-4 font-semibold text-right text-white">Total del Grupo</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr ng-repeat="grupo in agrupacionesContables" class="border-b border-white/10 hover:bg-white/5 transition duration-300">
-                                        <td class="py-3 px-4 font-mono text-sm text-indigo-100 font-bold">{{grupo.ID}}</td>
-                                        <td class="py-3 px-4 text-sm text-indigo-200 text-right">{{grupo.CANTIDAD}}</td>
-                                        <td class="py-3 px-4 font-mono text-sm text-emerald-400 text-right font-bold">${{grupo.DEDUCIBLE | number:2}}</td>
-                                        <td class="py-3 px-4 font-mono text-sm text-rose-400 text-right font-bold">${{grupo.NO_DEDUCIBLE | number:2}}</td>
-                                        <td class="py-3 px-4 font-mono text-sm text-white text-right font-bold bg-white/5">${{grupo.TOTAL | number:2}}</td>
-                                    </tr>
-                                    <tr ng-if="agrupacionesContables.length === 0">
-                                        <td colspan="5" class="py-8 text-center text-indigo-300/50 text-sm">No hay agrupaciones registradas.</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-indigo-500/20 blur-3xl pointer-events-none"></div>
-                    <div class="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-sky-500/10 blur-3xl pointer-events-none"></div>
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-marvi-accent"><p class="text-[10px] font-bold text-gray-400">GASTO TOTAL ACUMULADO</p><h3 class="text-xl font-bold text-slate-800 mt-1">${{kpis.total | number:2}}</h3></div>
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-emerald-500"><p class="text-[10px] font-bold text-gray-400">MONTO DEDUCIBLE</p><h3 class="text-xl font-bold text-emerald-600 mt-1">${{kpis.deducible | number:2}}</h3></div>
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-red-500"><p class="text-[10px] font-bold text-gray-400">MONTO NO DEDUCIBLE</p><h3 class="text-xl font-bold text-red-600 mt-1">${{kpis.noDeducible | number:2}}</h3></div>
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-slate-700"><p class="text-[10px] font-bold text-gray-400">TOTAL COMPROBACIONES</p><h3 class="text-xl font-bold text-slate-800 mt-1">{{kpis.conteo}}</h3></div>
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-purple-500"><p class="text-[10px] font-bold text-gray-400">GRUPOS ÚNICOS</p><h3 class="text-xl font-bold text-purple-600 mt-1">{{kpis.gruposUnicos}}</h3></div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="bg-white p-5 rounded-xl shadow border border-gray-100">
-                        <h4 class="text-sm font-semibold text-slate-700 mb-4 uppercase">● Presupuesto Vendido vs Gastado por Obra</h4>
+                        <h4 class="text-sm font-semibold text-slate-700 mb-4 uppercase">Distribución financiera por obra</h4>
                         <div class="chart-container"><canvas id="chartObras"></canvas></div>
                     </div>
                     <div class="bg-white p-5 rounded-xl shadow border border-gray-100">
-                        <h4 class="text-sm font-semibold text-slate-700 mb-4 uppercase">● Proporción por Tipo de Pago</h4>
+                        <h4 class="text-sm font-semibold text-slate-700 mb-4 uppercase">Proporción por tipo de pago</h4>
                         <div class="chart-container"><canvas id="chartPagos"></canvas></div>
                     </div>
-                    <div class="md:col-span-2 bg-white p-5 rounded-xl shadow border border-gray-100">
-                        <h4 class="text-sm font-semibold text-slate-700 mb-4 uppercase">● Gastos por Trabajador (Deducibles vs No Deducibles)</h4>
-                        <div class="chart-container-large"><canvas id="chartTrabajadores"></canvas></div>
+                    <div class="bg-white p-5 rounded-xl shadow border border-gray-100">
+                        <h4 class="text-sm font-semibold text-slate-700 mb-4 uppercase">Gastos por trabajador</h4>
+                        <div class="chart-container"><canvas id="chartTrabajadores"></canvas></div>
+                    </div>
+                    
+                    <div class="bg-white p-5 rounded-xl shadow border border-gray-100">
+                        <h4 class="text-sm font-semibold text-slate-700 mb-4 uppercase">Monto Total a Pagar por Obra (Ded. vs No Ded.)</h4>
+                        <p class="text-[10px] text-gray-400 mb-2">*Calculado extrayendo el monto de los grupos una sola vez.</p>
+                        <div class="chart-container"><canvas id="chartTotalesPagar"></canvas></div>
                     </div>
                 </div>
             </div>
@@ -217,143 +219,164 @@
 
         app.controller('MainController', function($scope, $http, $timeout) {
             
-            const API_URL = "https://script.google.com/macros/s/AKfycbw4PT5zXExAHdMgWJeD4iEPEM50u-dG2WY-LecCXWcfkRYhMuSpt6iT0_I4xVecc6ARLA/exec"; 
+            // Vinculado al $scope para que la interfaz se entere y libere el botón
+            $scope.apiUrl = "";
+            $scope.configError = false;
+            
+            // Cargar configuración de JSON al iniciar
+            $http.get('conexion.json').then(function(res) {
+                if(res.data && res.data.url) {
+                    $scope.apiUrl = res.data.url;
+                } else {
+                    $scope.configError = true;
+                }
+            }).catch(function() {
+                $scope.configError = true;
+            });
 
             $scope.isLoggedIn = false; $scope.activeTab = 1; $scope.loading = false;
             $scope.obras = []; $scope.gastos = [];
-            $scope.obraActual = {}; 
-            $scope.gastoActual = { DEDUCIBLE: 'SI', TIPO_DE_PAGO: 'TARJETA DE DEBITO', SUBTOTAL: 0, IVA: 0, RET_IVA: 0, RET_ISR: 0, DESCUENTO: 0, ISH: 0, TOTAL: 0 };
             
-            $scope.kpis = { total: 0, deducible: 0, noDeducible: 0, conteo: 0, obrasActivas: 0, totalObras: 0, montoVendido: 0 };
-            $scope.agrupacionesContables = [];
-
-            let chartInstanceObras = null; let chartInstancePagos = null; let chartInstanceTrabajadores = null;
+            // Modelos base
+            $scope.obraActual = {}; 
+            $scope.gastoActual = { 
+                DEDUCIBLE: 'SI', TIPO_DE_PAGO: 'TARJETA DE DEBITO', FOLIO_FISCAL: 'NO', MONTO_TOTAL_NO_DEDUCIBLE_PAGADO: 'NO',
+                SUBTOTAL: 0, IVA: 0, RET_IVA: 0, RET_ISR: 0, DESCUENTO: 0, ISH: 0, TOTAL: 0 
+            };
+            
+            $scope.kpis = { total: 0, deducible: 0, noDeducible: 0, conteo: 0, gruposUnicos: 0 };
+            
+            let chartInstObras=null, chartInstPagos=null, chartInstTrabajadores=null, chartInstTotales=null;
 
             $scope.login = function() { $scope.isLoggedIn = true; $scope.syncDataFromServer(); };
             $scope.logout = function() { $scope.isLoggedIn = false; $scope.activeTab = 1; };
             $scope.setTab = function(t) { $scope.activeTab = t; if(t === 3) $timeout(() => $scope.procesarMetricasYGraficos(), 100); };
 
             $scope.syncDataFromServer = function() {
+                if(!$scope.apiUrl) return;
                 $scope.loading = true;
-                $http.get(API_URL + "?action=getData").then(res => {
+                $http.get($scope.apiUrl + "?action=getData").then(res => {
                     if(res.data.success) {
                         $scope.obras = res.data.obras;
-                        $scope.gastos = res.data.gastos.map(g => { if(g.FECHA) g.FECHA = new Date(g.FECHA); return g; });
+                        $scope.gastos = res.data.gastos.map(g => { 
+                            if(g.FECHA) g.FECHA = new Date(g.FECHA); 
+                            if(g.FECHA_FOLIO_FISCAL) g.FECHA_FOLIO_FISCAL = new Date(g.FECHA_FOLIO_FISCAL);
+                            if(g.FECHA_PAGO_NO_DEDUCIBLE) g.FECHA_PAGO_NO_DEDUCIBLE = new Date(g.FECHA_PAGO_NO_DEDUCIBLE);
+                            return g; 
+                        });
                         if($scope.activeTab === 3) $scope.procesarMetricasYGraficos();
                     }
                 }).finally(() => $scope.loading = false);
             };
 
-            // CRUD OBRAS
+            // --- CRUD OBRAS ---
             $scope.guardarObra = function() {
                 $scope.loading = true;
-                $http.post(API_URL, JSON.stringify({ action: 'saveObra', payload: $scope.obraActual })).then(() => { $scope.obraActual={}; $scope.syncDataFromServer(); }).finally(() => $scope.loading = false);
+                $http.post($scope.apiUrl, JSON.stringify({ action: 'saveObra', payload: $scope.obraActual })).then(() => { $scope.obraActual={}; $scope.syncDataFromServer(); });
             };
             $scope.editarObra = function(o) { $scope.obraActual = angular.copy(o); window.scrollTo({top:0}); };
-            $scope.eliminarObra = function(o) { if(confirm('¿Eliminar obra?')) { $scope.loading = true; $http.post(API_URL, JSON.stringify({ action: 'deleteObra', payload: o })).then(()=> $scope.syncDataFromServer()); }};
+            $scope.eliminarObra = function(o) { if(confirm('¿Eliminar obra?')) { $scope.loading = true; $http.post($scope.apiUrl, JSON.stringify({ action: 'deleteObra', payload: o })).then(()=> $scope.syncDataFromServer()); }};
             $scope.limpiarObra = function() { $scope.obraActual = {}; };
 
-            // CRUD GASTOS
+            // --- CRUD GASTOS ---
             $scope.sincronizarObra = function() { if($scope.gastoActual.OBRA_OBJ) { $scope.gastoActual.ID_OBRA = $scope.gastoActual.OBRA_OBJ.ID_OBRA; $scope.gastoActual.OBRA = $scope.gastoActual.OBRA_OBJ.OBRA; }};
-            $scope.formatearFechaGasto = function() { if($scope.gastoActual._FECHA_RAW) $scope.gastoActual.FECHA = $scope.gastoActual._FECHA_RAW.toISOString(); };
+            
+            $scope.limpiarFecha = function(fechaVar, condicionalVar) {
+                if($scope.gastoActual[condicionalVar] === 'NO') {
+                    $scope.gastoActual["_" + fechaVar + "_RAW"] = null;
+                }
+            }
+
             $scope.calcularTotal = function() {
                 let sub = parseFloat($scope.gastoActual.SUBTOTAL)||0, iva = parseFloat($scope.gastoActual.IVA)||0, ish = parseFloat($scope.gastoActual.ISH)||0;
                 let ret = (parseFloat($scope.gastoActual.RET_IVA)||0) + (parseFloat($scope.gastoActual.RET_ISR)||0) + (parseFloat($scope.gastoActual.DESCUENTO)||0);
                 $scope.gastoActual.TOTAL = Math.round(((sub + iva + ish) - ret) * 100) / 100;
             };
+
             $scope.guardarGasto = function() {
-                $scope.loading = true; let payload = angular.copy($scope.gastoActual); delete payload.OBRA_OBJ; delete payload._FECHA_RAW;
-                $http.post(API_URL, JSON.stringify({ action: 'saveGasto', payload: payload })).then(()=> { $scope.limpiarGasto(); $scope.syncDataFromServer(); }).finally(()=> $scope.loading = false);
+                $scope.loading = true; 
+                let payload = angular.copy($scope.gastoActual); 
+                delete payload.OBRA_OBJ;
+                
+                if(payload._FECHA_RAW) payload.FECHA = payload._FECHA_RAW.toISOString();
+                if(payload._FECHA_FOLIO_FISCAL_RAW) payload.FECHA_FOLIO_FISCAL = payload._FECHA_FOLIO_FISCAL_RAW.toISOString();
+                if(payload._FECHA_PAGO_NO_DEDUCIBLE_RAW) payload.FECHA_PAGO_NO_DEDUCIBLE = payload._FECHA_PAGO_NO_DEDUCIBLE_RAW.toISOString();
+                
+                delete payload._FECHA_RAW; delete payload._FECHA_FOLIO_FISCAL_RAW; delete payload._FECHA_PAGO_NO_DEDUCIBLE_RAW;
+
+                $http.post($scope.apiUrl, JSON.stringify({ action: 'saveGasto', payload: payload })).then(()=> { $scope.limpiarGasto(); $scope.syncDataFromServer(); });
             };
-            $scope.editarGasto = function(g) { $scope.gastoActual = angular.copy(g); if(g.FECHA) $scope.gastoActual._FECHA_RAW = new Date(g.FECHA); $scope.gastoActual.OBRA_OBJ = $scope.obras.find(o => o.ID_OBRA == g.ID_OBRA); window.scrollTo({top:0}); };
-            $scope.eliminarGasto = function(g) { if(confirm('¿Eliminar gasto?')) { $scope.loading = true; $http.post(API_URL, JSON.stringify({ action: 'deleteGasto', payload: g })).then(()=> $scope.syncDataFromServer()); }};
-            $scope.limpiarGasto = function() { $scope.gastoActual = { DEDUCIBLE: 'SI', TIPO_DE_PAGO: 'TARJETA DE DEBITO', SUBTOTAL: 0, IVA: 0, RET_IVA: 0, RET_ISR: 0, DESCUENTO: 0, ISH: 0, TOTAL: 0 }; };
 
-            // MOTOR DE REPORTES Y TABLA CONTABLE
+            $scope.editarGasto = function(g) { 
+                $scope.gastoActual = angular.copy(g); 
+                if(g.FECHA) $scope.gastoActual._FECHA_RAW = new Date(g.FECHA); 
+                if(g.FECHA_FOLIO_FISCAL) $scope.gastoActual._FECHA_FOLIO_FISCAL_RAW = new Date(g.FECHA_FOLIO_FISCAL); 
+                if(g.FECHA_PAGO_NO_DEDUCIBLE) $scope.gastoActual._FECHA_PAGO_NO_DEDUCIBLE_RAW = new Date(g.FECHA_PAGO_NO_DEDUCIBLE); 
+                
+                $scope.gastoActual.OBRA_OBJ = $scope.obras.find(o => o.ID_OBRA == g.ID_OBRA); 
+                window.scrollTo({top:0}); 
+            };
+
+            $scope.eliminarGasto = function(g) { if(confirm('¿Eliminar comprobación?')) { $scope.loading = true; $http.post($scope.apiUrl, JSON.stringify({ action: 'deleteGasto', payload: g })).then(()=> $scope.syncDataFromServer()); }};
+            $scope.limpiarGasto = function() { $scope.gastoActual = { DEDUCIBLE: 'SI', TIPO_DE_PAGO: 'TARJETA DE DEBITO', FOLIO_FISCAL: 'NO', MONTO_TOTAL_NO_DEDUCIBLE_PAGADO: 'NO', SUBTOTAL: 0, IVA: 0, RET_IVA: 0, RET_ISR: 0, DESCUENTO: 0, ISH: 0, TOTAL: 0 }; };
+
+            // --- REPORTES Y ANALÍTICAS ---
             $scope.procesarMetricasYGraficos = function() {
-                let total = 0, ventasGlobales = 0;
-                let dataObrasGasto = {}, dataObrasVenta = {}, dataPagos = {}, dataTrabajadores = {};
-                let resumenContable = {};
-                let obrasActivasSet = new Set();
-
-                // Sumar Ventas Generales
-                $scope.obras.forEach(o => {
-                    ventasGlobales += o.VENTA_TOTAL || 0;
-                    dataObrasVenta[o.OBRA] = o.VENTA_TOTAL || 0;
-                });
+                let total=0, deducible=0, noDeducible=0;
+                let dataObrasGasto = {}, dataPagos = {}, dataTrabajadores = {};
+                let gruposUnicosSet = new Set();
+                
+                let chartObraGroupData = {};
+                let processedGroups = new Set();
 
                 $scope.gastos.forEach(g => {
                     total += g.TOTAL;
-                    obrasActivasSet.add(g.ID_OBRA);
+                    if(g.DEDUCIBLE === 'SI') deducible += g.TOTAL;
+                    if(g.DEDUCIBLE === 'NO') noDeducible += g.TOTAL;
+                    
+                    if(g.ID_GRUPO_COMPROBACION) gruposUnicosSet.add(g.ID_GRUPO_COMPROBACION);
 
-                    // Agrupaciones para gráficos
                     dataObrasGasto[g.OBRA] = (dataObrasGasto[g.OBRA] || 0) + g.TOTAL;
                     dataPagos[g.TIPO_DE_PAGO] = (dataPagos[g.TIPO_DE_PAGO] || 0) + g.TOTAL;
-                    
                     if(!dataTrabajadores[g.TRABAJADOR]) dataTrabajadores[g.TRABAJADOR] = { SI: 0, NO: 0 };
                     dataTrabajadores[g.TRABAJADOR][g.DEDUCIBLE] += g.TOTAL;
 
-                    // LÓGICA DE AGRUPACIÓN FISCAL PARA CONTADORES
-                    let idGrupo = g.ID_GRUPO_COMPROBACION || 'SIN GRUPO ASIGNADO';
-                    if(!resumenContable[idGrupo]) {
-                        resumenContable[idGrupo] = { ID: idGrupo, CANTIDAD: 0, DEDUCIBLE: 0, NO_DEDUCIBLE: 0, TOTAL: 0 };
+                    if(g.ID_GRUPO_COMPROBACION) {
+                        let compositeKey = g.OBRA + '_' + g.ID_GRUPO_COMPROBACION;
+                        if(!processedGroups.has(compositeKey)) {
+                            processedGroups.add(compositeKey);
+                            if(!chartObraGroupData[g.OBRA]) chartObraGroupData[g.OBRA] = { DED: 0, NO_DED: 0 };
+                            
+                            chartObraGroupData[g.OBRA].DED += g.MONTO_TOTAL_DEDUCIBLE_A_PAGAR;
+                            chartObraGroupData[g.OBRA].NO_DED += g.MONTO_TOTAL_NO_DEDUCIBLE_A_PAGAR;
+                        }
                     }
-                    resumenContable[idGrupo].CANTIDAD++;
-                    resumenContable[idGrupo].TOTAL += g.TOTAL;
-                    if(g.DEDUCIBLE === 'SI') resumenContable[idGrupo].DEDUCIBLE += g.TOTAL;
-                    if(g.DEDUCIBLE === 'NO') resumenContable[idGrupo].NO_DEDUCIBLE += g.TOTAL;
                 });
 
-                // Actualizar Modelos UI
-                $scope.kpis.total = total;
-                $scope.kpis.montoVendido = ventasGlobales;
-                $scope.kpis.obrasActivas = obrasActivasSet.size;
-                $scope.kpis.totalObras = $scope.obras.length;
-                
-                // Convertir objeto de resumen a Array y ordenar
-                $scope.agrupacionesContables = Object.values(resumenContable).sort((a,b) => a.ID.localeCompare(b.ID));
+                $scope.kpis.total = total; $scope.kpis.deducible = deducible; $scope.kpis.noDeducible = noDeducible;
+                $scope.kpis.conteo = $scope.gastos.length; $scope.kpis.gruposUnicos = gruposUnicosSet.size;
 
-                // GRAFICO 1: OBRAS (Vendido vs Gastado)
-                let labelsObras = Object.keys(dataObrasVenta);
-                let datasetVentas = labelsObras.map(l => dataObrasVenta[l] || 0);
-                let datasetGastos = labelsObras.map(l => dataObrasGasto[l] || 0);
-
-                if(chartInstanceObras) chartInstanceObras.destroy();
-                chartInstanceObras = new Chart(document.getElementById('chartObras'), {
-                    type: 'bar',
-                    data: {
-                        labels: labelsObras,
-                        datasets: [
-                            { label: 'Presupuesto/Vendido ($)', data: datasetVentas, backgroundColor: '#10b981' },
-                            { label: 'Total Gastado ($)', data: datasetGastos, backgroundColor: '#0ea5e9' }
-                        ]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false }
+                if(chartInstObras) chartInstObras.destroy();
+                chartInstObras = new Chart(document.getElementById('chartObras'), {
+                    type: 'bar', data: { labels: Object.keys(dataObrasGasto), datasets: [{ label: 'Total Gastado ($)', data: Object.values(dataObrasGasto), backgroundColor: '#0ea5e9' }] }, options: { responsive: true, maintainAspectRatio: false }
                 });
 
-                // GRAFICO 2: PAGOS
                 let labelsPagos = Object.keys(dataPagos);
-                const palette = ['#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#3b82f6'];
-                if(chartInstancePagos) chartInstancePagos.destroy();
-                chartInstancePagos = new Chart(document.getElementById('chartPagos'), {
-                    type: 'doughnut',
-                    data: { labels: labelsPagos, datasets: [{ data: Object.values(dataPagos), backgroundColor: palette.slice(0, labelsPagos.length) }] },
-                    options: { responsive: true, maintainAspectRatio: false }
+                if(chartInstPagos) chartInstPagos.destroy();
+                chartInstPagos = new Chart(document.getElementById('chartPagos'), {
+                    type: 'doughnut', data: { labels: labelsPagos, datasets: [{ data: Object.values(dataPagos), backgroundColor: ['#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#3b82f6'] }] }, options: { responsive: true, maintainAspectRatio: false }
                 });
 
-                // GRAFICO 3: TRABAJADORES
                 let labelsTrab = Object.keys(dataTrabajadores);
-                if(chartInstanceTrabajadores) chartInstanceTrabajadores.destroy();
-                chartInstanceTrabajadores = new Chart(document.getElementById('chartTrabajadores'), {
-                    type: 'bar',
-                    data: {
-                        labels: labelsTrab,
-                        datasets: [
-                            { label: 'Deducibles (SI)', data: labelsTrab.map(t => dataTrabajadores[t].SI), backgroundColor: '#10b981' },
-                            { label: 'No Deducibles (NO)', data: labelsTrab.map(t => dataTrabajadores[t].NO), backgroundColor: '#ef4444' }
-                        ]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false }
+                if(chartInstTrabajadores) chartInstTrabajadores.destroy();
+                chartInstTrabajadores = new Chart(document.getElementById('chartTrabajadores'), {
+                    type: 'bar', data: { labels: labelsTrab, datasets: [ { label: 'Deducibles (SI)', data: labelsTrab.map(t => dataTrabajadores[t].SI), backgroundColor: '#10b981' }, { label: 'No Deducibles (NO)', data: labelsTrab.map(t => dataTrabajadores[t].NO), backgroundColor: '#ef4444' } ] }, options: { responsive: true, maintainAspectRatio: false }
+                });
+
+                let labelsTotales = Object.keys(chartObraGroupData);
+                if(chartInstTotales) chartInstTotales.destroy();
+                chartInstTotales = new Chart(document.getElementById('chartTotalesPagar'), {
+                    type: 'bar', data: { labels: labelsTotales, datasets: [ { label: 'Monto Total Ded. a Pagar ($)', data: labelsTotales.map(l => chartObraGroupData[l].DED), backgroundColor: '#059669' }, { label: 'Monto Total No Ded. a Pagar ($)', data: labelsTotales.map(l => chartObraGroupData[l].NO_DED), backgroundColor: '#dc2626' } ] }, options: { responsive: true, maintainAspectRatio: false }
                 });
             };
         });
