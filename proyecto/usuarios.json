@@ -1,0 +1,17 @@
+[
+    {
+        "usuario": "admin",
+        "contrasena": "2026",
+        "rol": "admin"
+    },
+    {
+        "usuario": "root",
+        "contrasena": "12345",
+        "rol": "admin"
+    },
+    {
+        "usuario": "correo@gmail.com",
+        "contrasena": "12345",
+        "rol": "lectura"
+    }
+]

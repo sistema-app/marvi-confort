@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es" ng-app="marviApp">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gastos | Marvi Confort</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { theme: { extend: { colors: { marvi: { 900: '#0f172a', 800: '#1e293b', accent: '#0ea5e9', light: '#e0f2fe' } } } } }</script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+    <script src="app.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col" ng-controller="MainController" ng-cloak>
+    
+    <header class="bg-marvi-900 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold text-marvi-light"><span class="text-marvi-accent">Marvi</span> Confort</h1>
+                <span class="text-[10px] text-slate-400 mt-1 block uppercase tracking-wider" ng-show="isLoggedIn">
+                    Sesión activa: <strong class="text-sky-400">{{userRole}}</strong>
+                </span>
+            </div>
+            <button ng-click="logout()" class="text-sm bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded border border-slate-600">Cerrar Sesión</button>
+        </div>
+    </header>
+
+    <nav class="bg-white border-b border-gray-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 flex gap-8">
+            <a href="obras.html" ng-class="{'border-b-2 border-marvi-accent text-marvi-accent font-semibold': activeTab === 1, 'text-gray-500': activeTab !== 1}" class="py-4 px-2 block">Alta de Obras</a>
+            <a href="comprobaciones.html" ng-class="{'border-b-2 border-marvi-accent text-marvi-accent font-semibold': activeTab === 2, 'text-gray-500': activeTab !== 2}" class="py-4 px-2 block">Comprobación de Gastos</a>
+            <a href="reportes.html" ng-class="{'border-b-2 border-marvi-accent text-marvi-accent font-semibold': activeTab === 3, 'text-gray-500': activeTab !== 3}" class="py-4 px-2 block">Reportes y Analíticas</a>
+            <a href="presupuestos.html" ng-class="{'border-b-2 border-marvi-accent text-marvi-accent font-semibold': activeTab === 3, 'text-gray-500': activeTab !== 3}" class="py-4 px-2 block">Presupuestos</a>
+        </div>
+    </nav>
+
+    <div ng-show="loading" class="bg-sky-50 border-b border-sky-100 text-center py-2 text-sm text-sky-700 font-medium animate-pulse">Sincronizando con Google Sheets...</div>
+
+    <main class="flex-grow max-w-7xl mx-auto w-full px-4 py-8">
+        
+        <div ng-if="esAdmin" class="bg-white p-6 rounded-xl shadow border border-gray-100 mb-8">
+            <form ng-submit="guardarGasto()">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div><label class="block text-xs font-bold text-purple-600 mb-1">ID GRUPO COMPROBACIÓN</label><input type="text" ng-model="gastoActual.ID_GRUPO_COMPROBACION" required class="w-full p-2 border-2 border-purple-300 rounded text-sm uppercase bg-purple-50"></div>
+                    <div class="md:col-span-2"><label class="block text-xs font-semibold text-gray-500 mb-1">VINCULAR A OBRA</label><select ng-model="gastoActual.OBRA_OBJ" ng-options="o as (o.ID_OBRA + ' - ' + o.OBRA) for o in obras track by o.ID_OBRA" ng-change="sincronizarObra()" required class="w-full p-2 border rounded text-sm bg-white"><option value="">-- Selecciona --</option></select></div>
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">FECHA</label><input type="date" ng-model="gastoActual._FECHA_RAW" required class="w-full p-2 border rounded text-sm"></div>
+                </div>
+                <hr class="my-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">DEDUCIBLE</label><select ng-model="gastoActual.DEDUCIBLE" class="w-full p-2 border rounded text-sm bg-white"><option value="SI">SI</option><option value="NO">NO</option></select></div>
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">FACTURA</label><input type="text" ng-model="gastoActual.FACTURA" class="w-full p-2 border rounded text-sm uppercase"></div>
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">RFC</label><input type="text" ng-model="gastoActual.RFC" class="w-full p-2 border rounded text-sm uppercase"></div>
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">TIPO DE PAGO</label><select ng-model="gastoActual.TIPO_DE_PAGO" class="w-full p-2 border rounded text-sm bg-white"><option value="TARJETA DE DEBITO">DEBITO</option><option value="TARJETA DE CREDITO">CREDITO</option><option value="EFECTIVO">EFECTIVO</option><option value="TRANSFERENCIA">TRANSFERENCIA</option></select></div>
+                    <div class="md:col-span-2"><label class="block text-xs font-semibold text-gray-500 mb-1">PROVEEDOR</label><input type="text" ng-model="gastoActual.PROVEEDOR" required class="w-full p-2 border rounded text-sm uppercase"></div>
+                    <div class="md:col-span-2"><label class="block text-xs font-semibold text-gray-500 mb-1">TRABAJADOR</label><input type="text" ng-model="gastoActual.TRABAJADOR" required class="w-full p-2 border rounded text-sm uppercase"></div>
+                    <div class="md:col-span-4"><label class="block text-xs font-semibold text-gray-500 mb-1">DESCRIPCIÓN</label><textarea ng-model="gastoActual.DESCRIPCION" rows="2" class="w-full p-2 border rounded text-sm uppercase"></textarea></div>
+                </div>
+                <hr class="my-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">SUBTOTAL</label><input type="number" step="0.01" ng-model="gastoActual.SUBTOTAL" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono" required></div>
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">IVA</label><input type="number" step="0.01" ng-model="gastoActual.IVA" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono"></div>
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">RET IVA</label><input type="number" step="0.01" ng-model="gastoActual.RET_IVA" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono text-red-500"></div>
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">RET ISR</label><input type="number" step="0.01" ng-model="gastoActual.RET_ISR" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono text-red-500"></div>
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">DESCUENTO</label><input type="number" step="0.01" ng-model="gastoActual.DESCUENTO" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono text-red-500"></div>
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">ISH</label><input type="number" step="0.01" ng-model="gastoActual.ISH" ng-change="calcularTotal()" class="w-full p-2 border rounded text-sm font-mono"></div>
+                    <div class="md:col-span-2"><label class="block text-sm font-bold text-marvi-900 mb-1">TOTAL (Registro Actual)</label><input type="number" step="0.01" ng-model="gastoActual.TOTAL" disabled class="w-full p-2 border-2 border-marvi-accent rounded text-sm font-mono font-bold bg-marvi-light text-slate-900"></div>
+                </div>
+                <hr class="my-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">FOLIO FISCAL</label><select ng-model="gastoActual.FOLIO_FISCAL" ng-change="limpiarFecha('FECHA_FOLIO_FISCAL', 'FOLIO_FISCAL')" class="w-full p-2 border rounded text-sm bg-white"><option value="SI">SI</option><option value="NO">NO</option></select></div>
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">FECHA FOLIO FISCAL</label><input type="date" ng-model="gastoActual._FECHA_FOLIO_FISCAL_RAW" ng-disabled="gastoActual.FOLIO_FISCAL == 'NO'" ng-required="gastoActual.FOLIO_FISCAL == 'SI'" class="w-full p-2 border rounded text-sm disabled:bg-gray-100"></div>
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">PAGO NO DEDUCIBLE</label><select ng-model="gastoActual.MONTO_TOTAL_NO_DEDUCIBLE_PAGADO" ng-change="limpiarFecha('FECHA_PAGO_NO_DEDUCIBLE', 'MONTO_TOTAL_NO_DEDUCIBLE_PAGADO')" class="w-full p-2 border rounded text-sm bg-white"><option value="SI">SI</option><option value="NO">NO</option></select></div>
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">FECHA PAGO NO DEDUCIBLE</label><input type="date" ng-model="gastoActual._FECHA_PAGO_NO_DEDUCIBLE_RAW" ng-disabled="gastoActual.MONTO_TOTAL_NO_DEDUCIBLE_PAGADO == 'NO'" ng-required="gastoActual.MONTO_TOTAL_NO_DEDUCIBLE_PAGADO == 'SI'" class="w-full p-2 border rounded text-sm disabled:bg-gray-100"></div>
+                    
+                    <div class="md:col-span-2"><label class="block text-xs font-bold text-emerald-600 mb-1">MONTO TOTAL DEDUCIBLE A PAGAR (Nube)</label><input type="number" ng-model="gastoActual.MONTO_TOTAL_DEDUCIBLE_A_PAGAR" disabled class="w-full p-2 border border-emerald-200 rounded text-sm font-mono font-bold bg-emerald-50 text-emerald-700"></div>
+                    <div class="md:col-span-2"><label class="block text-xs font-bold text-red-600 mb-1">MONTO TOTAL NO DEDUCIBLE A PAGAR (Nube)</label><input type="number" ng-model="gastoActual.MONTO_TOTAL_NO_DEDUCIBLE_A_PAGAR" disabled class="w-full p-2 border border-red-200 rounded text-sm font-mono font-bold bg-red-50 text-red-700"></div>
+                </div>
+                <div class="mt-6 flex justify-end gap-2">
+                    <button type="button" ng-click="limpiarGasto()" class="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300">Limpiar Formulario</button>
+                    <button type="submit" ng-disabled="loading" class="bg-marvi-accent text-white px-8 py-2 rounded hover:bg-sky-600 font-semibold shadow-md">Guardar Gasto</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center bg-slate-50"><h3 class="font-bold text-gray-700 text-sm">Registro Histórico ("COMPROBACION_GASTOS")</h3><input type="text" ng-model="searchGasto" placeholder="Buscar..." class="px-3 py-1 border rounded text-sm w-1/3"></div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse whitespace-nowrap">
+                    <thead><tr class="bg-marvi-900 text-white text-xs uppercase"><th class="py-2 px-3">ID</th><th class="py-2 px-3">Grupo</th><th class="py-2 px-3">Fecha</th><th class="py-2 px-3">Obra</th><th class="py-2 px-3">Proveedor</th><th class="py-2 px-3">Total</th><th ng-if="esAdmin" class="py-2 px-3 text-center">Acciones</th></tr></thead>
+                    <tbody>
+                        <tr ng-repeat="g in gastos | filter:searchGasto" class="border-b hover:bg-gray-50 text-sm">
+                            <td class="py-2 px-3 font-mono">{{g.ID_COMPROBACION}}</td><td class="py-2 px-3 font-mono font-bold text-purple-700">{{g.ID_GRUPO_COMPROBACION}}</td><td class="py-2 px-3">{{ g.FECHA | date:'dd/MM/yyyy' }}</td><td class="py-2 px-3 font-medium">{{g.OBRA}}</td><td class="py-2 px-3">{{g.PROVEEDOR}}</td><td class="py-2 px-3 font-mono font-bold">${{g.TOTAL | number:2}}</td>
+                            <td ng-if="esAdmin" class="py-2 px-3 text-center"><button ng-click="editarGasto(g)" class="text-sky-600 font-semibold mx-1 text-xs">Editar</button><button ng-click="eliminarGasto(g)" class="text-red-500 font-semibold mx-1 text-xs">Eliminar</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
