@@ -1,0 +1,17 @@
+Comprobaciones
+
+Reporte semanal contadores
+
+Persona captura la información de los montos
+
+Considerar una lista desplegable de categorías al momento de registrar una nueva comprobación
+
+------
+Presupuestos
+
+Estos se sumaran en automatico de la hoja de comprobaciones
+
+Agregar una columna de "Gastos administrativos" (NO DEDUCIBLES)
+
+Agregar porcentajes
+
