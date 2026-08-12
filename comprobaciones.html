@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es" ng-app="marviApp">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprobaciones | Marvi Confort</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { 
+            theme: { 
+                extend: { 
+                    colors: { 
+                        marvi: { 900: '#0f172a', 800: '#1e293b', accent: '#0ea5e9', light: '#e0f2fe' } 
+                    } 
+                } 
+            } 
+        }
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="app.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col" ng-controller="MainController" ng-init="activeTab = 2" ng-cloak>
+    
+    <!-- ENCABEZADO Y NAVEGACIÓN -->
+    <header class="bg-marvi-900 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold text-marvi-light"><span class="text-marvi-accent">Marvi</span> Confort</h1>
+                <span class="text-[10px] text-slate-400 mt-1 block uppercase tracking-wider" ng-show="isLoggedIn">
+                    Usuario: <strong class="text-sky-400">{{currentUser}}</strong> | Permiso Comprobaciones: {{permissions.COMPROBACIONES}}
+                </span>
+            </div>
+            <button ng-click="logout()" class="text-sm bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded border border-slate-600 transition-colors">Cerrar Sesión</button>
+        </div>
+    </header>
+
+    <nav class="bg-white border-b border-gray-200 shadow-sm overflow-x-auto">
+        <div class="max-w-7xl mx-auto px-4 flex gap-8 whitespace-nowrap">
+
+            <!-- Pestañas Activas -->
+            <a href="obras.html" ng-if="permissions.OBRAS !== 'sin_acceso'" ng-class="{'border-b-2 border-marvi-accent text-marvi-accent font-semibold': activeTab === 1, 'text-gray-500': activeTab !== 1}" class="py-4 px-2 block transition-colors hover:text-marvi-accent">Alta de Obras</a>
+            <a href="comprobaciones.html" ng-if="permissions.COMPROBACIONES !== 'sin_acceso'" ng-class="{'border-b-2 border-marvi-accent text-marvi-accent font-semibold': activeTab === 2, 'text-gray-500': activeTab !== 2}" class="py-4 px-2 block transition-colors hover:text-marvi-accent">Comprobación de Gastos</a>
+            
+            <!-- Pestañas Bloqueadas (Fase de Pruebas) -->
+            <span ng-if="permissions.REPORTES !== 'sin_acceso'" title="En fase de implementación" class="py-4 px-2 block text-gray-400 cursor-not-allowed border-b-2 border-transparent">Reportes y Analíticas</span>
+            <span ng-if="permissions.PRESUPUESTOS !== 'sin_acceso'" title="En fase de implementación" class="py-4 px-2 block text-gray-400 cursor-not-allowed border-b-2 border-transparent">Presupuestos por Obras</span>
+        
+        </div>
+    </nav>
+
+    <div ng-show="loading" class="bg-sky-50 border-b border-sky-100 text-center py-2 text-sm text-sky-700 font-medium animate-pulse">Procesando petición...</div>
+
+    <main class="flex-grow max-w-7xl mx-auto w-full px-4 py-8">
+
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+            <h2 class="text-2xl font-bold text-marvi-900">Gestión de Comprobaciones</h2>
+            <div class="flex gap-2">
+                <button ng-click="exportarExcel('grupo')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow flex items-center gap-2 text-sm transition-colors" title="Exportar comprobaciones del grupo actual en pantalla">
+                    Exportar Grupo Actual
+                </button>
+                <button ng-click="exportarExcel('todo')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded shadow flex items-center gap-2 text-sm transition-colors" title="Exportar base de datos completa">
+                    Exportar Historial
+                </button>
+                
+                <!-- NUEVO: Botón Desplegable para Exportar por Obra -->
+                <select ng-model="obraParaExportar" ng-change="exportarExcel('obra', obraParaExportar)" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded shadow text-sm transition-colors focus:outline-none cursor-pointer appearance-none text-center font-medium" title="Selecciona una obra para exportar">
+                    <option value="" disabled selected>Exportar Obra ▼</option>
+                    <option ng-repeat="obra in obras" value="{{obra.ID_OBRA}}" class="bg-white text-gray-800 text-left">{{obra.OBRA}}</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- ZONA DE FORMULARIO -->
+        <div ng-if="permissions.COMPROBACIONES === 'total'" class="bg-white p-6 rounded-xl shadow border border-gray-100 mb-8">
+            
+            <form onsubmit="event.preventDefault();">
+                
+                <!-- Fila 0: Identificadores (Búsqueda alfanumérica y Grupos) -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 pb-6 border-b border-gray-200">
+                    <div class="flex items-end gap-2">
+                        <div class="w-full">
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">ID COMPROBACIÓN</label>
+                            <!-- APLICACIÓN DE LA REGLA DEL PUNTO: busqueda.id -->
+                            <input type="text" ng-model="busqueda.id" list="listaIDs" placeholder="Ej: CMP-260801-038" class="w-full px-3 py-2 border rounded focus:outline-none focus:border-marvi-accent bg-gray-50 font-mono font-bold text-marvi-900 uppercase">
+                            
+                            <!-- Datalist dinámico alimentado por AngularJS -->
+                            <datalist id="listaIDs">
+                                <option ng-repeat="c in comprobaciones" value="{{c.ID_COMPROBACION}}"> {{c.OBRA}} - {{c.TRABAJADOR}} </option>
+                            </datalist>
+                        </div>
+                        <button type="button" ng-click="buscarComprobacionPorId(busqueda.id)" class="px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700 text-sm font-medium transition-colors whitespace-nowrap">
+                            Buscar
+                        </button>
+                        <!-- Botón Limpiar intacto -->
+                        <button type="button" ng-click="limpiarComprobacion()" class="px-4 py-2 bg-gray-200 text-gray-700 border border-gray-300 rounded hover:bg-gray-300 text-sm font-medium transition-colors whitespace-nowrap" title="Limpiar Búsqueda">
+                            Limpiar
+                        </button>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">ID GRUPO COMPROBACIÓN</label>
+                        <input type="text" ng-model="comprobacionActual.ID_GRUPO_COMPROBACION" disabled placeholder="Autogenerado por sistema" class="w-full px-3 py-2 border border-gray-200 rounded bg-gray-100 text-gray-500 font-mono font-medium text-center">
+                    </div>
+                    <div class="flex items-end justify-end">
+                        <button type="button" ng-if="comprobacionActual.ID_COMPROBACION" ng-click="eliminarComprobacion(comprobacionActual)" class="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-100 text-sm font-medium transition-colors w-full md:w-auto">
+                            Eliminar Registro Actual
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PANEL DE RESUMEN DEL GRUPO -->
+                <div ng-if="obtenerResumenActual()" class="bg-white p-4 rounded-lg border border-indigo-200 mb-6 shadow-sm">
+                    <h4 class="text-sm font-bold text-indigo-800 mb-3 uppercase flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Resumen Financiero del Grupo: {{comprobacionActual.ID_GRUPO_COMPROBACION}}
+                    </h4>
+                    <div class="grid grid-cols-2 md:grid-cols-6 gap-3 text-center">
+                        <div class="bg-indigo-50 p-2 rounded border border-indigo-100">
+                            <div class="text-[10px] font-bold text-indigo-500 uppercase leading-tight">Facturas</div>
+                            <div class="font-mono font-bold text-indigo-900">{{obtenerResumenActual().CANTIDAD_COMPROBACIONES}}</div>
+                        </div>
+                        <div class="bg-slate-50 p-2 rounded border border-slate-200">
+                            <div class="text-[10px] font-bold text-slate-500 uppercase leading-tight">Total General</div>
+                            <div class="font-mono font-bold text-slate-900">{{obtenerResumenActual().TOTAL_GENERAL | currency}}</div>
+                        </div>
+                        <div class="bg-sky-50 p-2 rounded border border-sky-100">
+                            <div class="text-[10px] font-bold text-sky-600 uppercase leading-tight">Ded. a Pagar</div>
+                            <div class="font-mono font-bold text-sky-900">{{obtenerResumenActual().TOTAL_DEDUCIBLE_A_PAGAR | currency}}</div>
+                        </div>
+                        <div class="bg-emerald-50 p-2 rounded border border-emerald-100">
+                            <div class="text-[10px] font-bold text-emerald-600 uppercase leading-tight">Ded. Pagado</div>
+                            <div class="font-mono font-bold text-emerald-900">{{obtenerResumenActual().TOTAL_DEDUCIBLE_PAGADO | currency}}</div>
+                        </div>
+                        <div class="bg-orange-50 p-2 rounded border border-orange-100">
+                            <div class="text-[10px] font-bold text-orange-600 uppercase leading-tight">No Ded. a Pagar</div>
+                            <div class="font-mono font-bold text-orange-900">{{obtenerResumenActual().TOTAL_NO_DEDUCIBLE_A_PAGAR | currency}}</div>
+                        </div>
+                        <div class="bg-green-50 p-2 rounded border border-green-100">
+                            <div class="text-[10px] font-bold text-green-600 uppercase leading-tight">No Ded. Pagado</div>
+                            <div class="font-mono font-bold text-green-900">{{obtenerResumenActual().TOTAL_NO_DEDUCIBLE_PAGADO | currency}}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4 text-marvi-900 font-medium">
+                    {{ comprobacionActual.ID_COMPROBACION ? 'Actualizando Registro: ' + comprobacionActual.ID_COMPROBACION : 'Captura de Nueva Comprobación' }}
+                </div>
+
+                <!-- Fila 1: Datos Generales -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">FECHA <span class="text-red-500">*</span></label>
+                        <input type="date" ng-model="comprobacionActual.FECHA" required class="w-full px-3 py-2 border rounded focus:outline-none focus:border-marvi-accent">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">FACTURA <span class="text-red-500">*</span></label>
+                        <input type="text" ng-model="comprobacionActual.FACTURA" required class="w-full px-3 py-2 border rounded uppercase focus:outline-none focus:border-marvi-accent">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">DEDUCIBLE <span class="text-red-500">*</span></label>
+                        <select ng-model="comprobacionActual.DEDUCIBLE" ng-change="limpiarDependenciasDeducible()" required class="w-full px-3 py-2 border rounded bg-white focus:outline-none focus:border-marvi-accent">
+                            <option value="">Seleccione...</option>
+                            <option value="SI">SI</option>
+                            <option value="NO">NO</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">TIPO DE PAGO <span class="text-red-500">*</span></label>
+                        <select ng-model="comprobacionActual.TIPO_DE_PAGO" required class="w-full px-3 py-2 border rounded bg-white focus:outline-none focus:border-marvi-accent">
+                            <option value="">Seleccione...</option>
+                            <option value="TARJETA DE DEBITO">TARJETA DE DÉBITO</option>
+                            <option value="TARJETA DE CREDITO">TARJETA DE CRÉDITO</option>
+                            <option value="EFECTIVO">EFECTIVO</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Fila 2: Participantes -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">PROVEEDOR <span class="text-red-500">*</span></label>
+                        <input type="text" ng-model="comprobacionActual.PROVEEDOR" required class="w-full px-3 py-2 border rounded uppercase focus:outline-none focus:border-marvi-accent">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">RFC <span class="text-red-500">*</span></label>
+                        <input type="text" ng-model="comprobacionActual.RFC" required class="w-full px-3 py-2 border rounded uppercase focus:outline-none focus:border-marvi-accent">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">TRABAJADOR <span class="text-red-500">*</span></label>
+                        <!-- APLICACIÓN DE CANDADO: ng-disabled y clases disabled -->
+                        <input type="text" ng-model="comprobacionActual.TRABAJADOR" ng-disabled="comprobacionActual.ID_COMPROBACION" ng-blur="evaluarGrupoComprobacion()" list="listaTrabajadores" required class="w-full px-3 py-2 border rounded uppercase focus:outline-none focus:border-marvi-accent disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed">
+                        <datalist id="listaTrabajadores">
+                            <option ng-repeat="t in trabajadoresUnicos" value="{{t}}"></option>
+                        </datalist>
+                    </div>
+                </div>
+
+                <!-- Fila 3: Obra y Descripción -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="md:col-span-1">
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">OBRA ASOCIADA <span class="text-red-500">*</span></label>
+                        <!-- APLICACIÓN DE CANDADO: ng-disabled y clases disabled -->
+                        <select ng-model="comprobacionActual.ID_OBRA" ng-disabled="comprobacionActual.ID_COMPROBACION" ng-change="evaluarGrupoComprobacion()" ng-options="obra.ID_OBRA as (obra.ID_OBRA + ' - ' + obra.OBRA) for obra in obras" required class="w-full px-3 py-2 border rounded bg-white focus:outline-none focus:border-marvi-accent disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed">
+                            <option value="">Seleccione una obra...</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">DESCRIPCIÓN <span class="text-red-500">*</span></label>
+                        <input type="text" ng-model="comprobacionActual.DESCRIPCION" required class="w-full px-3 py-2 border rounded focus:outline-none focus:border-marvi-accent">
+                    </div>
+                </div>
+
+                <!-- Panel Dinámico de Periodos -->
+                <div ng-show="gruposPreviosDetectados" class="mb-6 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-md transition-all duration-300">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3 w-full">
+                            <p class="text-sm text-amber-800 font-bold mb-2">
+                                Historial detectado para este trabajador en esta obra. Selecciona el periodo de comprobación:
+                            </p>
+                            <!-- BINDING DIRECTO AL OBJETO: Iteración sobre el historial completo -->
+                            <select ng-model="comprobacionActual.ID_GRUPO_COMPROBACION" class="block w-full rounded-md border-amber-300 text-sm focus:border-amber-500 focus:ring-amber-500 bg-white px-3 py-2 border font-bold text-amber-900">
+                                <option ng-repeat="grupo in gruposHistoricos" value="{{grupo}}">Agregar al periodo: {{grupo}}</option>
+                                <option value="{{grupoNuevo}}">Abrir un nuevo periodo ({{grupoNuevo}})</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN: DESGLOSE FINANCIERO GENERAL -->
+                <div class="bg-slate-50 p-4 rounded border border-slate-200 mb-6">
+                    <h4 class="text-sm font-bold text-marvi-800 mb-4 uppercase">Desglose Financiero General</h4>
+                    <div class="grid grid-cols-2 md:grid-cols-7 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-semibold text-gray-500 mb-1">SUBTOTAL *</label>
+                            <input type="number" step="0.01" ng-model="comprobacionActual.SUBTOTAL" ng-change="calcularTotal(comprobacionActual)" required class="w-full px-2 py-2 border rounded focus:outline-none focus:border-marvi-accent text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-gray-500 mb-1">IVA *</label>
+                            <input type="number" step="0.01" ng-model="comprobacionActual.IVA" ng-change="calcularTotal(comprobacionActual)" required class="w-full px-2 py-2 border rounded focus:outline-none focus:border-marvi-accent text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-gray-500 mb-1">RET IVA *</label>
+                            <input type="number" step="0.01" ng-model="comprobacionActual.RET_IVA" ng-change="calcularTotal(comprobacionActual)" required class="w-full px-2 py-2 border rounded focus:outline-none focus:border-marvi-accent text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-gray-500 mb-1">RET ISR *</label>
+                            <input type="number" step="0.01" ng-model="comprobacionActual.RET_ISR" ng-change="calcularTotal(comprobacionActual)" required class="w-full px-2 py-2 border rounded focus:outline-none focus:border-marvi-accent text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-gray-500 mb-1">DESCUENTO *</label>
+                            <input type="number" step="0.01" ng-model="comprobacionActual.DESCUENTO" ng-change="calcularTotal(comprobacionActual)" required class="w-full px-2 py-2 border rounded focus:outline-none focus:border-marvi-accent text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-gray-500 mb-1">ISH *</label>
+                            <input type="number" step="0.01" ng-model="comprobacionActual.ISH" ng-change="calcularTotal(comprobacionActual)" required class="w-full px-2 py-2 border rounded focus:outline-none focus:border-marvi-accent text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-marvi-900 mb-1">TOTAL *</label>
+                            <input type="number" step="0.01" ng-model="comprobacionActual.TOTAL" readonly class="w-full px-2 py-2 border rounded border-gray-300 bg-gray-200 text-gray-600 focus:outline-none text-sm font-bold cursor-not-allowed">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN: CONTROL FISCAL Y PAGOS (Dinámico basado en Deducible) -->
+                <div class="bg-white p-4 rounded-lg border border-gray-200 mb-6 shadow-sm">
+                    <h4 class="text-sm font-bold text-slate-800 mb-4 uppercase border-b pb-2 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-marvi-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Control Fiscal y Pagos
+                    </h4>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Bloque Deducible (Solo se construye en el código si es SI) -->
+                        <div ng-if="comprobacionActual.DEDUCIBLE === 'SI'" class="space-y-4 bg-sky-50 p-4 rounded border border-sky-100 transition-all">
+                            <h5 class="text-xs font-bold text-sky-800 uppercase mb-2">Facturación (Deducible)</h5>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">¿TIENE FOLIO FISCAL? <span class="text-red-500">*</span></label>
+                                <select ng-model="comprobacionActual.FOLIO_FISCAL" required class="w-full px-3 py-2 border rounded bg-white focus:outline-none focus:border-sky-500">
+                                    <option value="">Seleccione...</option>
+                                    <option value="SI">SI</option>
+                                    <option value="NO">NO</option>
+                                </select>
+                            </div>
+                            <div ng-if="comprobacionActual.FOLIO_FISCAL === 'SI'">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">FECHA FOLIO FISCAL <span class="text-red-500">*</span></label>
+                                <input type="date" ng-model="comprobacionActual.FECHA_FOLIO_FISCAL" required class="w-full px-3 py-2 border rounded focus:outline-none focus:border-sky-500">
+                            </div>
+                        </div>
+
+                        <!-- Bloque No Deducible (Solo se construye en el código si es NO) -->
+                        <div ng-if="comprobacionActual.DEDUCIBLE === 'NO'" class="space-y-4 bg-orange-50 p-4 rounded border border-orange-100 transition-all">
+                            <h5 class="text-xs font-bold text-orange-800 uppercase mb-2">Control de Pago (No Deducible)</h5>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">MONTO PAGADO ($) <span class="text-red-500">*</span></label>
+                                <input type="number" step="0.01" ng-model="comprobacionActual.MONTO_TOTAL_NO_DEDUCIBLE_PAGADO" required class="w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500">
+                            </div>
+                            <div ng-if="comprobacionActual.MONTO_TOTAL_NO_DEDUCIBLE_PAGADO > 0">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">FECHA DE PAGO <span class="text-red-500">*</span></label>
+                                <input type="date" ng-model="comprobacionActual.FECHA_PAGO_NO_DEDUCIBLE" required class="w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOTONES DE ACCIÓN -->
+                <div class="flex gap-3 justify-end border-t pt-4">
+                    <button type="button" ng-click="limpiarComprobacion()" class="px-6 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors font-medium text-sm">Limpiar Formulario</button>
+                    <button type="submit" ng-click="guardarComprobacion()" ng-disabled="loading" class="px-6 py-2 bg-marvi-accent text-white rounded hover:bg-sky-600 transition-colors shadow font-medium text-sm disabled:opacity-50">
+                        {{ comprobacionActual.ID_COMPROBACION ? 'Actualizar Registro' : 'Guardar Nuevo Registro' }}
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- LISTADO / TABLA HISTÓRICA -->
+        <div class="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+            <div class="p-4 border-b bg-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <h3 class="text-lg font-medium text-marvi-900">Historial de Comprobaciones</h3>
+                <div class="relative w-full sm:w-1/3">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </div>
+                    <input type="text" ng-model="filtroTabla.ID_COMPROBACION" placeholder="Filtrar tabla por ID..." class="w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:border-marvi-accent focus:ring-1 focus:ring-marvi-accent text-sm">
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto max-h-[600px]">
+                <table class="w-full text-left border-collapse whitespace-nowrap" id="tablaComprobaciones">
+                    <thead class="sticky top-0 z-10">
+                        <tr class="bg-marvi-900 text-white text-sm">
+                            <th class="py-3 px-4 font-semibold">ID</th>
+                            <th class="py-3 px-4 font-semibold">FECHA</th>
+                            <th class="py-3 px-4 font-semibold">FACTURA</th>
+                            <th class="py-3 px-4 font-semibold">PROVEEDOR</th>
+                            <th class="py-3 px-4 font-semibold">TRABAJADOR</th>
+                            <th class="py-3 px-4 font-semibold">OBRA</th>
+                            <th class="py-3 px-4 font-semibold text-right">TOTAL</th>
+                            <th class="py-3 px-4 font-semibold text-center">GRUPO ID</th>
+                            <th class="py-3 px-4 font-semibold text-center" ng-if="permissions.COMPROBACIONES === 'total'">ACCIONES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr ng-repeat="c in comprobaciones | filter:filtroTabla" class="border-b hover:bg-slate-50 text-sm transition-colors">
+                            <td class="py-3 px-4 font-mono font-bold text-marvi-800">{{ c.ID_COMPROBACION }}</td>
+                            <td class="py-3 px-4 text-gray-600">{{ c.FECHA }}</td> <!-- Ya viene formateada de backend -->
+                            <td class="py-3 px-4">{{ c.FACTURA }}</td>
+                            <td class="py-3 px-4">{{ c.PROVEEDOR }}</td>
+                            <td class="py-3 px-4">{{ c.TRABAJADOR }}</td>
+                            <td class="py-3 px-4 text-xs">{{ c.OBRA }}</td>
+                            <td class="py-3 px-4 text-right font-medium text-marvi-900">{{ c.TOTAL | currency }}</td>
+                            <td class="py-3 px-4 text-center">
+                                <span class="bg-slate-100 text-slate-700 text-xs font-mono font-bold px-2 py-1 rounded border border-slate-200">{{ c.ID_GRUPO_COMPROBACION }}</span>
+                            </td>
+                            <td class="py-3 px-4 text-center" ng-if="permissions.COMPROBACIONES === 'total'">
+                                <!-- Cargar los datos al formulario -->
+                                <button ng-click="buscarComprobacionPorId(c.ID_COMPROBACION)" class="text-sky-600 hover:text-sky-800 mx-2 transition-colors" title="Editar">Editar</button>
+                            </td>
+                        </tr>
+                        <tr ng-if="(comprobaciones | filter:filtroTabla).length === 0">
+                            <td colspan="{{permissions.COMPROBACIONES === 'total' ? 9 : 8}}" class="text-center py-12 text-gray-400 text-sm">
+                                No se encontraron comprobaciones registradas.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

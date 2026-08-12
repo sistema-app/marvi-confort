@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es" ng-app="marviApp">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obras | Marvi Confort</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { theme: { extend: { colors: { marvi: { 900: '#0f172a', 800: '#1e293b', accent: '#0ea5e9', light: '#e0f2fe' } } } } }</script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+    <script src="app.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col" ng-controller="MainController" ng-cloak>
+    
+    <header class="bg-marvi-900 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold text-marvi-light"><span class="text-marvi-accent">Marvi</span> Confort</h1>
+                <span class="text-[10px] text-slate-400 mt-1 block uppercase tracking-wider" ng-show="isLoggedIn">
+                    Usuario: <strong class="text-sky-400">{{currentUser}}</strong> | Permiso Obras: {{permissions.OBRAS}}
+                </span>
+            </div>
+            <button ng-click="logout()" class="text-sm bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded border border-slate-600">Cerrar Sesión</button>
+        </div>
+    </header>
+
+    <nav class="bg-white border-b border-gray-200 shadow-sm overflow-x-auto">
+        <div class="max-w-7xl mx-auto px-4 flex gap-8 whitespace-nowrap">
+            
+            <!-- Pestañas Activas -->
+            <a href="obras.html" ng-if="permissions.OBRAS !== 'sin_acceso'" ng-class="{'border-b-2 border-marvi-accent text-marvi-accent font-semibold': activeTab === 1, 'text-gray-500': activeTab !== 1}" class="py-4 px-2 block transition-colors hover:text-marvi-accent">Alta de Obras</a>
+            <a href="comprobaciones.html" ng-if="permissions.COMPROBACIONES !== 'sin_acceso'" ng-class="{'border-b-2 border-marvi-accent text-marvi-accent font-semibold': activeTab === 2, 'text-gray-500': activeTab !== 2}" class="py-4 px-2 block transition-colors hover:text-marvi-accent">Comprobación de Gastos</a>
+            
+            <!-- Pestañas Bloqueadas (Fase de Pruebas) -->
+            <span ng-if="permissions.REPORTES !== 'sin_acceso'" title="En fase de implementación" class="py-4 px-2 block text-gray-400 cursor-not-allowed border-b-2 border-transparent">Reportes y Analíticas</span>
+            <span ng-if="permissions.PRESUPUESTOS !== 'sin_acceso'" title="En fase de implementación" class="py-4 px-2 block text-gray-400 cursor-not-allowed border-b-2 border-transparent">Presupuestos por Obras</span>
+        
+        
+        </div>
+    </nav>
+
+    <div ng-show="loading" class="bg-sky-50 border-b border-sky-100 text-center py-2 text-sm text-sky-700 font-medium animate-pulse">Sincronizando con base de datos...</div>
+
+    <main class="flex-grow max-w-7xl mx-auto w-full px-4 py-8">
+        <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
+            
+            <div ng-if="permissions.OBRAS === 'total'" class="bg-white p-6 rounded-xl shadow border border-gray-100 h-fit">
+                <h3 class="text-lg font-medium text-marvi-900 mb-4">{{ obraActual.ID_OBRA ? 'Actualizar' : 'Registrar' }} Obra</h3>
+                <form ng-submit="guardarObra()">
+                    <div class="mb-4"><label class="block text-xs font-semibold text-gray-500 mb-1">ID OBRA</label><input type="text" ng-model="obraActual.ID_OBRA" disabled class="w-full px-3 py-2 bg-gray-100 border rounded text-gray-500"></div>
+                    <div class="mb-6"><label class="block text-xs font-semibold text-gray-500 mb-1">NOMBRE DE LA OBRA</label><input type="text" ng-model="obraActual.OBRA" required class="w-full px-3 py-2 border rounded uppercase"></div>
+                    <div class="flex gap-2">
+                        <button type="submit" ng-disabled="loading" class="w-full bg-marvi-accent text-white py-2 rounded">Guardar</button>
+                        <button type="button" ng-click="limpiarObra()" class="w-full bg-gray-200 text-gray-700 py-2 rounded">Limpiar</button>
+                    </div>
+                </form>
+            </div>
+
+            <div ng-class="{'md:col-span-2': permissions.OBRAS === 'total', 'md:col-span-3': permissions.OBRAS !== 'total'}" class="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+                <div class="p-4 border-b flex justify-between items-center"><input type="text" ng-model="searchObra" placeholder="Buscar..." class="px-3 py-1 border rounded w-1/2 md:w-1/3"></div>
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-marvi-900 text-white text-sm">
+                            <th class="py-3 px-4">ID</th>
+                            <th class="py-3 px-4">OBRA</th>
+                            <th ng-if="permissions.OBRAS === 'total'" class="py-3 px-4 text-center">ACCIONES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr ng-repeat="o in obras | filter:searchObra" class="border-b hover:bg-gray-50 text-sm">
+                            <td class="py-2 px-4 font-mono">{{o.ID_OBRA}}</td>
+                            <td class="py-2 px-4 font-medium uppercase">{{o.OBRA}}</td>
+                            <td ng-if="permissions.OBRAS === 'total'" class="py-2 px-4 text-center">
+                                <button ng-click="editarObra(o)" class="text-sky-600 mx-1">Editar</button>
+                                <button ng-click="eliminarObra(o)" class="text-red-500 mx-1">Eliminar</button>
+                            </td>
+                        </tr>
+                        <tr ng-if="(obras | filter:searchObra).length === 0">
+                            <td colspan="{{permissions.OBRAS === 'total' ? 3 : 2}}" class="text-center py-8 text-gray-400 text-sm">No se encontraron registros.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

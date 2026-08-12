@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es" ng-app="marviApp">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presupuestos | Marvi Confort</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { theme: { extend: { colors: { marvi: { 900: '#0f172a', 800: '#1e293b', accent: '#0ea5e9', light: '#e0f2fe' } } } } }</script>
+    
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <script src="app.js"></script>
+    <style>
+        .chart-container { position: relative; height: 320px; width: 100%; }
+        .glass-toggle { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); }
+        /* Scrollbar styling para la lista de checkboxes */
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col" ng-controller="MainController" ng-cloak>
+    
+    <header class="bg-marvi-900 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold text-marvi-light"><span class="text-marvi-accent">Marvi</span> Confort</h1>
+                <span class="text-[10px] text-slate-400 mt-1 block uppercase tracking-wider" ng-show="isLoggedIn">
+                    Sesión activa: <strong class="text-sky-400">{{userRole}}</strong>
+                </span>
+            </div>
+            <button ng-click="logout()" class="text-sm bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded border border-slate-600 transition-colors">Cerrar Sesión</button>
+        </div>
+    </header>
+
+    <nav class="bg-white border-b border-gray-200 shadow-sm overflow-x-auto">
+        <div class="max-w-7xl mx-auto px-4 flex gap-8 whitespace-nowrap">
+            <a href="obras.html" ng-class="{'border-b-2 border-marvi-accent text-marvi-accent font-semibold': activeTab === 1, 'text-gray-500': activeTab !== 1}" class="py-4 px-2 block transition-colors">Alta de Obras</a>
+            <a href="comprobaciones.html" ng-class="{'border-b-2 border-marvi-accent text-marvi-accent font-semibold': activeTab === 2, 'text-gray-500': activeTab !== 2}" class="py-4 px-2 block transition-colors">Comprobación de Gastos</a>
+            <a href="reportes.html" ng-class="{'border-b-2 border-marvi-accent text-marvi-accent font-semibold': activeTab === 3, 'text-gray-500': activeTab !== 3}" class="py-4 px-2 block transition-colors">Reportes y Analíticas</a>
+            <a href="presupuestos.html" ng-class="{'border-b-2 border-marvi-accent text-marvi-accent font-semibold': activeTab === 4, 'text-gray-500': activeTab !== 4}" class="py-4 px-2 block transition-colors">Presupuestos por Obras</a>
+        </div>
+    </nav>
+
+    <div ng-show="loading" class="bg-sky-50 border-b border-sky-100 text-center py-2 text-sm text-sky-700 font-medium animate-pulse">Sincronizando Presupuestos...</div>
+
+    <main class="flex-grow max-w-7xl mx-auto w-full px-4 py-8">
+        
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <div>
+                <h2 class="text-2xl font-bold text-slate-800">Control de Presupuestos y Márgenes</h2>
+                <p class="text-sm text-slate-500">Los porcentajes se calculan con respecto al total dinámico invertido.</p>
+            </div>
+            
+            <div class="glass-toggle p-1 rounded-lg flex border border-gray-200 shadow-sm">
+                <button ng-click="setVistaPresupuesto('deducible')" ng-class="{'bg-emerald-500 text-white shadow': vistaPresupuestos === 'deducible', 'text-gray-500 hover:bg-gray-100': vistaPresupuestos !== 'deducible'}" class="px-4 py-2 rounded-md text-sm font-semibold transition-all duration-300">
+                    Solo Deducibles
+                </button>
+                <button ng-click="setVistaPresupuesto('global')" ng-class="{'bg-slate-800 text-white shadow': vistaPresupuestos === 'global', 'text-gray-500 hover:bg-gray-100': vistaPresupuestos !== 'global'}" class="px-4 py-2 rounded-md text-sm font-semibold transition-all duration-300">
+                    Vista Global (Inc. Admin)
+                </button>
+            </div>
+        </div>
+
+        <!-- FILTRO DE OBRAS (CHECKLIST MINIMALISTA) -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-8">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
+                <h3 class="font-bold text-slate-700 text-sm">Filtro de Obras</h3>
+                <div class="flex flex-wrap gap-2">
+                    <button ng-click="toggleTodasObras(true)" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg transition-colors font-medium">Seleccionar Todas</button>
+                    <button ng-click="toggleTodasObras(false)" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg transition-colors font-medium">Desmarcar Todas</button>
+                    <button ng-click="restablecerFiltrosObras()" class="text-xs bg-marvi-accent hover:bg-sky-600 text-white px-4 py-1.5 rounded-lg shadow-sm transition-colors font-semibold">Restablecer Módulo</button>
+                </div>
+            </div>
+            <div class="flex flex-row overflow-x-auto gap-3 pb-2 custom-scrollbar">
+                <label ng-repeat="(obra, seleccionado) in filtroObras" class="flex items-center gap-2 cursor-pointer bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-100 transition-colors shrink-0">
+                    <input type="checkbox" ng-model="filtroObras[obra]" ng-change="actualizarFiltroObras()" class="accent-marvi-accent w-4 h-4 cursor-pointer">
+                    <span class="text-slate-700 font-medium text-sm">{{obra}}</span>
+                </label>
+                <div ng-if="(presupuestos).length === 0" class="text-sm text-gray-400 p-2">No hay obras registradas.</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Presupuesto Asignado</p>
+                <h3 class="text-2xl font-bold text-slate-800 mt-2">${{kpiPresupuestos.totalPresupuesto | number:2}}</h3>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Inv. Prevista Asignada</p>
+                <h3 class="text-2xl font-bold text-amber-500 mt-2">${{kpiPresupuestos.totalInversionPrevista | number:2}}</h3>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Suma Calculada ({{vistaPresupuestos === 'deducible' ? '4 Rubros' : '5 Rubros'}})</p>
+                <h3 class="text-2xl font-bold text-indigo-500 mt-2">${{kpiPresupuestos.totalGastado | number:2}}</h3>
+            </div>
+            <div class="bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-700">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Margen Estimado</p>
+                <h3 ng-class="{'text-emerald-400': kpiPresupuestos.margenGlobal >= 0, 'text-red-400': kpiPresupuestos.margenGlobal < 0}" class="text-2xl font-bold mt-2">
+                    ${{kpiPresupuestos.margenGlobal | number:2}}
+                </h3>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="md:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h4 class="text-sm font-semibold text-slate-800 mb-6 uppercase tracking-wide">Comportamiento Financiero Filtrado</h4>
+                <div class="chart-container"><canvas id="chartInversion"></canvas></div>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h4 class="text-sm font-semibold text-slate-800 mb-6 uppercase tracking-wide text-center">Desglose de Costos</h4>
+                <div class="chart-container"><canvas id="chartDesglose"></canvas></div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+            <div class="p-5 border-b border-gray-100 bg-slate-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <h3 class="font-bold text-slate-700 text-sm">Detalle Financiero por Rubro y Porcentajes Dinámicos</h3>
+                <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                    <input type="text" ng-model="searchPresupuesto" placeholder="Búsqueda textual..." class="px-4 py-2 border rounded-lg text-sm w-full sm:w-64 outline-none focus:ring-2 focus:ring-marvi-accent">
+                    <button ng-click="exportarPresupuestosExcel()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-2 shadow w-full sm:w-auto whitespace-nowrap">
+                        🗎 Exportar a Excel
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto pb-4 custom-scrollbar">
+                <table class="w-full text-left border-collapse whitespace-nowrap min-w-max">
+                    <thead>
+                        <tr class="bg-white text-slate-400 text-[10px] uppercase tracking-wider border-b border-gray-100">
+                            <th class="py-4 px-4 font-semibold align-bottom">ID / Obra</th>
+                            <th class="py-4 px-4 font-semibold text-right align-bottom text-emerald-600">Presupuesto<br>Base ($)</th>
+                            <th class="py-4 px-4 font-semibold text-right align-bottom border-l">
+                                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[9px] mb-1 inline-block">DEDUCIBLE</span><br>Mano de Obra
+                            </th>
+                            <th class="py-4 px-4 font-semibold text-right align-bottom">
+                                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[9px] mb-1 inline-block">DEDUCIBLE</span><br>Equipos
+                            </th>
+                            <th class="py-4 px-4 font-semibold text-right align-bottom">
+                                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[9px] mb-1 inline-block">DEDUCIBLE</span><br>Materiales
+                            </th>
+                            <th class="py-4 px-4 font-semibold text-right align-bottom">
+                                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[9px] mb-1 inline-block">DEDUCIBLE</span><br>Lámina
+                            </th>
+                            <th ng-show="vistaPresupuestos === 'global'" class="py-4 px-4 font-semibold text-right align-bottom border-l bg-red-50/30">
+                                <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[9px] mb-1 inline-block">NO DEDUCIBLE</span><br>Gastos Admin.
+                            </th>
+                            <th class="py-4 px-4 font-semibold text-right align-bottom border-l text-amber-600">Total Inv.<br>Calculada</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-xs text-slate-600">
+                        <!-- El filtro principal (Checklist) más la búsqueda textual integrada -->
+                        <tr ng-repeat="p in presupuestos | filter:searchPresupuesto | filter:filtroPorObraSeleccionada" class="border-b border-gray-50 hover:bg-slate-50 transition-colors">
+                            <td class="py-3 px-4">
+                                <span class="font-mono text-gray-400 mr-2">{{p.ID_OBRA}}</span>
+                                <strong class="text-slate-800 text-sm">{{p.OBRA}}</strong>
+                            </td>
+                            <td class="py-3 px-4 text-right font-mono font-bold text-emerald-600 text-sm">${{p.PRESUPUESTO_MONTO | number:2}}</td>
+                            
+                            <td class="py-3 px-4 text-right border-l">
+                                <div ng-class="{'text-red-500 font-bold': p.MANO_OBRA_MONTO < 0, 'text-slate-700': p.MANO_OBRA_MONTO >= 0}" class="font-mono">
+                                    ${{p.MANO_OBRA_MONTO | number:2}}
+                                </div>
+                                <div class="text-[10px] text-gray-400 font-mono mt-0.5">{{ calcPorcentaje(p.MANO_OBRA_MONTO, p) | number:1 }}%</div>
+                            </td>
+                            
+                            <td class="py-3 px-4 text-right">
+                                <div ng-class="{'text-red-500 font-bold': p.EQUIPOS_MONTO < 0, 'text-slate-700': p.EQUIPOS_MONTO >= 0}" class="font-mono">
+                                    ${{p.EQUIPOS_MONTO | number:2}}
+                                </div>
+                                <div class="text-[10px] text-gray-400 font-mono mt-0.5">{{ calcPorcentaje(p.EQUIPOS_MONTO, p) | number:1 }}%</div>
+                            </td>
+                            
+                            <td class="py-3 px-4 text-right">
+                                <div ng-class="{'text-red-500 font-bold': p.MATERIALES_VARIOS_MONTO < 0, 'text-slate-700': p.MATERIALES_VARIOS_MONTO >= 0}" class="font-mono">
+                                    ${{p.MATERIALES_VARIOS_MONTO | number:2}}
+                                </div>
+                                <div class="text-[10px] text-gray-400 font-mono mt-0.5">{{ calcPorcentaje(p.MATERIALES_VARIOS_MONTO, p) | number:1 }}%</div>
+                            </td>
+                            
+                            <td class="py-3 px-4 text-right">
+                                <div ng-class="{'text-red-500 font-bold': p.LAMINA_MONTO < 0, 'text-slate-700': p.LAMINA_MONTO >= 0}" class="font-mono">
+                                    ${{p.LAMINA_MONTO | number:2}}
+                                </div>
+                                <div class="text-[10px] text-gray-400 font-mono mt-0.5">{{ calcPorcentaje(p.LAMINA_MONTO, p) | number:1 }}%</div>
+                            </td>
+
+                            <td ng-show="vistaPresupuestos === 'global'" class="py-3 px-4 text-right border-l bg-red-50/10">
+                                <div ng-class="{'text-red-600 font-bold': p.GASTOS_ADMINISTRATIVOS_MONTO < 0, 'text-slate-800 font-semibold': p.GASTOS_ADMINISTRATIVOS_MONTO >= 0}" class="font-mono">
+                                    ${{p.GASTOS_ADMINISTRATIVOS_MONTO | number:2}}
+                                </div>
+                                <div class="text-[10px] text-gray-400 font-mono mt-0.5">{{ calcPorcentaje(p.GASTOS_ADMINISTRATIVOS_MONTO, p) | number:1 }}%</div>
+                            </td>
+                            
+                            <td class="py-3 px-4 text-right border-l font-mono font-bold text-amber-500 text-sm">
+                                ${{ getTotalDinamico(p) | number:2 }}
+                            </td>
+                        </tr>
+                        <tr ng-if="(presupuestos | filter:searchPresupuesto | filter:filtroPorObraSeleccionada).length === 0">
+                            <td colspan="{{vistaPresupuestos === 'global' ? 8 : 7}}" class="py-8 text-center text-slate-400">No hay datos que coincidan con los filtros aplicados.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-white border-t border-gray-200 py-6 mt-auto text-center">
+        <p class="text-sm text-gray-500">&copy; 2025-2026 Marvi Confort</p>
+        <p class="text-xs text-marvi-accent font-semibold mt-1 tracking-wide">Developed by Jonathan López</p>
+    </footer>
+</body>
+</html>
